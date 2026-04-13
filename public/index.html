@@ -104,14 +104,14 @@
       <input type="text" id="offerUrl" placeholder="https://linkedin.com/jobs/... ou URL de l'offre">
       <button class="fetch-btn" id="fetchBtn" onclick="fetchOffer()">Fetch →</button>
     </div>
-    <textarea id="offerContent" placeholder="Ou colle le contenu de l'offre ici directement..." oninput="onOfferChange()"></textarea>
+    <textarea id="offerContent" placeholder="Ou colle le contenu de l'offre ici directement..." oninput="onOfferChange(true)"></textarea>
   </div>
 
   <!-- Location + Work Mode -->
   <div class="row">
     <div class="field">
       <div class="label">Lieu</div>
-      <input type="text" id="location" placeholder="Paris, France" value="Paris, France" oninput="onOfferChange()">
+      <input type="text" id="location" placeholder="Paris, France" value="Paris, France" oninput="onLocationManualEdit()">
     </div>
     <div class="field">
       <div class="label">Mode de travail</div>
@@ -167,6 +167,7 @@
   let coverLetterEnabled = false;
   let detectedTemplate = null;
   let detectTimeout = null;
+  let locationLocked = false; // true once user manually edits the location field
 
   function setMode(btn, mode) {
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -205,12 +206,18 @@
     }
   }
 
-  function onOfferChange() {
+  function onLocationManualEdit() {
+    locationLocked = true; // user took control of the field
     clearTimeout(detectTimeout);
-    detectTimeout = setTimeout(detectTemplate, 600);
+    detectTimeout = setTimeout(() => detectTemplate(false), 600);
   }
 
-  async function detectTemplate() {
+  function onOfferChange(allowLocationUpdate) {
+    clearTimeout(detectTimeout);
+    detectTimeout = setTimeout(() => detectTemplate(allowLocationUpdate), 600);
+  }
+
+  async function detectTemplate(allowLocationUpdate = false) {
     const offer = document.getElementById('offerContent').value.trim();
     const location = document.getElementById('location').value.trim();
     const override = document.getElementById('templateOverride').value;
@@ -224,8 +231,8 @@
       const data = await res.json();
       detectedTemplate = data.template;
       document.getElementById('templateDisplay').textContent = data.template;
-      // Auto-fill location only when we actually extracted something from the offer
-      if (data.suggestedLocation) {
+      // Only update location if: new offer content arrived AND user hasn't manually set it
+      if (allowLocationUpdate && !locationLocked && data.suggestedLocation) {
         document.getElementById('location').value = data.suggestedLocation;
       }
     } catch (e) { /* silent */ }
@@ -246,7 +253,8 @@
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       document.getElementById('offerContent').value = data.content;
-      detectTemplate();
+      locationLocked = false; // new offer fetch resets the lock
+      detectTemplate(true);
       setStatus('');
     } catch (e) {
       setStatus('Could not fetch URL — paste the content manually.', true);
