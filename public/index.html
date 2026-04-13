@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CV Generator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f0f0f; color: #fff; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; min-height: 100vh; padding: 40px 20px; }
+    .container { max-width: 680px; margin: 0 auto; }
+    .header { border-bottom: 1px solid #222; padding-bottom: 16px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .header h1 { font-size: 18px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+    .header p { font-size: 11px; color: #666; margin-top: 2px; }
+    .logout { font-size: 11px; color: #555; text-decoration: none; }
+    .logout:hover { color: #aaa; }
+    .label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: #888; text-transform: uppercase; margin-bottom: 8px; }
+    .field { margin-bottom: 20px; }
+    input[type="text"], textarea {
+      width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px;
+      padding: 10px 14px; color: #fff; font-size: 12px; font-family: inherit;
+      outline: none; resize: vertical;
+    }
+    input[type="text"]:focus, textarea:focus { border-color: #555; }
+    textarea { min-height: 90px; line-height: 1.5; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .url-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .url-row input { flex: 1; }
+    .fetch-btn {
+      background: #222; border: 1px solid #333; border-radius: 6px;
+      padding: 10px 16px; color: #aaa; font-size: 12px; cursor: pointer;
+      white-space: nowrap;
+    }
+    .fetch-btn:hover { background: #2a2a2a; color: #fff; }
+    .fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .work-mode { display: flex; gap: 6px; }
+    .mode-btn {
+      background: #1a1a1a; border: 1px solid #333; border-radius: 4px;
+      padding: 7px 12px; font-size: 11px; color: #666; cursor: pointer;
+    }
+    .mode-btn.active { background: #333; border-color: #555; color: #fff; }
+    .mode-btn:hover:not(.active) { border-color: #444; color: #aaa; }
+    .template-row {
+      background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px;
+      padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+    }
+    .template-label { font-size: 11px; color: #666; }
+    .template-value { font-size: 11px; color: #4ade80; font-weight: 600; }
+    .template-change { margin-left: auto; font-size: 10px; color: #555; cursor: pointer; text-decoration: underline; background: none; border: none; color: #555; }
+    .template-change:hover { color: #aaa; }
+    select {
+      background: #1a1a1a; border: 1px solid #333; border-radius: 4px;
+      padding: 5px 8px; color: #aaa; font-size: 11px; outline: none;
+      display: none;
+    }
+    select.visible { display: inline-block; }
+    .toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; cursor: pointer; }
+    .toggle { width: 36px; height: 20px; border-radius: 10px; background: #333; position: relative; transition: background 0.2s; flex-shrink: 0; }
+    .toggle.on { background: #4ade80; }
+    .toggle::after { content: ''; width: 16px; height: 16px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.2s; }
+    .toggle.on::after { left: 18px; }
+    .toggle-label { font-size: 12px; color: #ccc; }
+    .generate-btn {
+      width: 100%; background: #fff; color: #000; border: none; border-radius: 6px;
+      padding: 13px; font-size: 13px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; cursor: pointer; margin-bottom: 24px;
+    }
+    .generate-btn:hover { background: #eee; }
+    .generate-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .status { font-size: 12px; color: #888; text-align: center; margin-bottom: 16px; min-height: 18px; }
+    .status.error { color: #f87171; }
+    .results { display: flex; gap: 10px; }
+    .result-card {
+      flex: 1; border: 1px dashed #2a2a2a; border-radius: 6px;
+      padding: 16px; text-align: center;
+    }
+    .result-card.ready { border-color: #4ade80; border-style: solid; background: #0a1a0a; }
+    .result-card .rc-label { font-size: 10px; letter-spacing: 1px; color: #555; text-transform: uppercase; margin-bottom: 6px; }
+    .result-card .rc-label.ready { color: #4ade80; }
+    .result-card a {
+      display: inline-block; background: #4ade80; color: #000; border-radius: 4px;
+      padding: 7px 16px; font-size: 11px; font-weight: 700; text-decoration: none;
+      letter-spacing: 0.5px; margin-top: 4px;
+    }
+    .result-card .placeholder { font-size: 11px; color: #444; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div>
+      <h1>CV Generator</h1>
+      <p>Baptiste Hoffmann — Personal Tool</p>
+    </div>
+    <a href="/logout" class="logout">Logout</a>
+  </div>
+
+  <!-- Job Offer -->
+  <div class="field">
+    <div class="label">Offre d'emploi</div>
+    <div class="url-row">
+      <input type="text" id="offerUrl" placeholder="https://linkedin.com/jobs/... ou URL de l'offre">
+      <button class="fetch-btn" id="fetchBtn" onclick="fetchOffer()">Fetch →</button>
+    </div>
+    <textarea id="offerContent" placeholder="Ou colle le contenu de l'offre ici directement..." oninput="onOfferChange()"></textarea>
+  </div>
+
+  <!-- Location + Work Mode -->
+  <div class="row">
+    <div class="field">
+      <div class="label">Lieu</div>
+      <input type="text" id="location" placeholder="Paris, France" value="Paris, France" oninput="onOfferChange()">
+    </div>
+    <div class="field">
+      <div class="label">Mode de travail</div>
+      <div class="work-mode" id="workMode">
+        <button class="mode-btn active" onclick="setMode(this, 'remote')">Remote</button>
+        <button class="mode-btn" onclick="setMode(this, 'hybrid')">Hybrid</button>
+        <button class="mode-btn" onclick="setMode(this, 'on-site')">On-site</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template auto-detected -->
+  <div class="template-row">
+    <span class="template-label">Template détecté :</span>
+    <span class="template-value" id="templateDisplay">—</span>
+    <button class="template-change" onclick="toggleTemplateOverride()">Changer</button>
+    <select id="templateOverride" onchange="onTemplateOverride()">
+      <option value="">Auto</option>
+      <option value="CV_France.md">CV_France.md (FR)</option>
+      <option value="Resume_USA_Canada.md">Resume_USA_Canada.md (EN)</option>
+      <option value="Resume_Singapore_SouthKorea.md">Resume_Singapore_SouthKorea.md</option>
+      <option value="Resume_Japan.md">Resume_Japan.md</option>
+    </select>
+  </div>
+
+  <!-- Cover Letter Toggle -->
+  <div class="toggle-row" onclick="toggleCoverLetter()">
+    <div class="toggle" id="clToggle"></div>
+    <span class="toggle-label">Générer aussi une lettre de motivation</span>
+  </div>
+
+  <!-- Generate Button -->
+  <button class="generate-btn" id="generateBtn" onclick="startGeneration()">Générer →</button>
+
+  <!-- Status -->
+  <div class="status" id="status"></div>
+
+  <!-- Results -->
+  <div class="results">
+    <div class="result-card" id="cvCard">
+      <div class="rc-label">CV adapté</div>
+      <div class="placeholder">Apparaîtra ici après génération</div>
+    </div>
+    <div class="result-card" id="clCard">
+      <div class="rc-label">Lettre de motivation</div>
+      <div class="placeholder">Option désactivée</div>
+    </div>
+  </div>
+
+</div>
+<script>
+  let selectedMode = 'remote';
+  let coverLetterEnabled = false;
+  let detectedTemplate = null;
+  let detectTimeout = null;
+
+  function setMode(btn, mode) {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedMode = mode;
+  }
+
+  function toggleCoverLetter() {
+    coverLetterEnabled = !coverLetterEnabled;
+    document.getElementById('clToggle').classList.toggle('on', coverLetterEnabled);
+    updateClCard();
+  }
+
+  function updateClCard() {
+    const card = document.getElementById('clCard');
+    if (!coverLetterEnabled) {
+      card.className = 'result-card';
+      card.innerHTML = '<div class="rc-label">Lettre de motivation</div><div class="placeholder">Option désactivée</div>';
+    } else {
+      card.className = 'result-card';
+      card.innerHTML = '<div class="rc-label">Lettre de motivation</div><div class="placeholder">Sera générée avec le CV</div>';
+    }
+  }
+
+  function toggleTemplateOverride() {
+    const sel = document.getElementById('templateOverride');
+    sel.classList.toggle('visible');
+  }
+
+  function onTemplateOverride() {
+    const sel = document.getElementById('templateOverride');
+    if (sel.value) {
+      document.getElementById('templateDisplay').textContent = sel.value;
+    } else {
+      detectTemplate();
+    }
+  }
+
+  function onOfferChange() {
+    clearTimeout(detectTimeout);
+    detectTimeout = setTimeout(detectTemplate, 600);
+  }
+
+  async function detectTemplate() {
+    const offer = document.getElementById('offerContent').value;
+    const location = document.getElementById('location').value;
+    const override = document.getElementById('templateOverride').value;
+    if (override) return;
+    if (!offer || !location) { document.getElementById('templateDisplay').textContent = '—'; return; }
+    try {
+      const res = await fetch('/api/detect-template', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offerContent: offer, location })
+      });
+      const data = await res.json();
+      detectedTemplate = data.template;
+      document.getElementById('templateDisplay').textContent = data.template;
+    } catch (e) { /* silent */ }
+  }
+
+  async function fetchOffer() {
+    const url = document.getElementById('offerUrl').value.trim();
+    if (!url) return;
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = true;
+    btn.textContent = '...';
+    setStatus('Fetching offer...');
+    try {
+      const res = await fetch('/api/fetch-offer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      document.getElementById('offerContent').value = data.content;
+      detectTemplate();
+      setStatus('');
+    } catch (e) {
+      setStatus('Could not fetch URL — paste the content manually.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Fetch →';
+    }
+  }
+
+  async function startGeneration() {
+    const offerContent = document.getElementById('offerContent').value.trim();
+    const location = document.getElementById('location').value.trim();
+    const templateOverride = document.getElementById('templateOverride').value;
+    if (!offerContent) { setStatus('Paste the job offer content first.', true); return; }
+    if (!location) { setStatus('Enter the job location.', true); return; }
+
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Génération en cours...';
+    resetCards();
+    setStatus('Claude adapte le CV...');
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          offerContent, location,
+          workMode: selectedMode,
+          withCoverLetter: coverLetterEnabled,
+          templateOverride: templateOverride || null
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setStatus('');
+      showResult('cvCard', data.cv, 'CV adapté');
+      if (data.coverLetter) showResult('clCard', data.coverLetter, 'Lettre de motivation');
+    } catch (e) {
+      setStatus('Erreur : ' + e.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Générer →';
+    }
+  }
+
+  function showResult(cardId, file, label) {
+    const card = document.getElementById(cardId);
+    card.className = 'result-card ready';
+    const blob = b64toBlob(file.data, 'application/pdf');
+    const url = URL.createObjectURL(blob);
+    card.innerHTML = `
+      <div class="rc-label ready">${label}</div>
+      <div style="font-size:10px;color:#4ade80;margin-bottom:8px;">${file.filename}</div>
+      <a href="${url}" download="${file.filename}">Télécharger PDF</a>
+    `;
+  }
+
+  function resetCards() {
+    document.getElementById('cvCard').className = 'result-card';
+    document.getElementById('cvCard').innerHTML = '<div class="rc-label">CV adapté</div><div class="placeholder">Génération en cours...</div>';
+    if (coverLetterEnabled) {
+      document.getElementById('clCard').className = 'result-card';
+      document.getElementById('clCard').innerHTML = '<div class="rc-label">Lettre de motivation</div><div class="placeholder">Génération en cours...</div>';
+    }
+  }
+
+  function setStatus(msg, isError = false) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status' + (isError ? ' error' : '');
+  }
+
+  function b64toBlob(b64, type) {
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type });
+  }
+</script>
+</body>
+</html>
