@@ -12,8 +12,9 @@ async function generate({ offerContent, location, workMode, withCoverLetter, tem
   // Adapt CV with Claude
   const { markdown: adaptedCv, company, role } = await adaptCv(templateMd, offerContent, workMode, location);
 
-  // Generate CV PDF
-  const cvBuffer = await generateCvPdf(adaptedCv);
+  // Generate CV PDF (French CVs include photo)
+  const withPhoto = templateFile === 'CV_France.md';
+  const cvBuffer = await generateCvPdf(adaptedCv, withPhoto);
 
   const safeCompany = company.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
   const isEnglish = language === 'en';

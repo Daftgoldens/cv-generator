@@ -1,6 +1,17 @@
 'use strict';
 const puppeteer = require('puppeteer');
 const { marked } = require('marked');
+const fs = require('fs');
+const path = require('path');
+
+const PHOTO_B64 = (() => {
+  try {
+    const buf = fs.readFileSync(path.join(__dirname, '../assets/photo_baptiste.jpg'));
+    return 'data:image/jpeg;base64,' + buf.toString('base64');
+  } catch {
+    return null;
+  }
+})();
 
 const CV_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,6 +39,10 @@ const CV_CSS = `
   table { width: 100%; border-collapse: collapse; font-size: 8pt; margin: 3px 0 5px 0; }
   td, th { padding: 2px 6px; vertical-align: top; }
   td:first-child { white-space: nowrap; }
+  .cv-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
+  .cv-header-text { flex: 1; }
+  .cv-header-photo { flex-shrink: 0; margin-left: 14px; }
+  .cv-header-photo img { width: 28mm; height: 35mm; object-fit: cover; border-radius: 2px; display: block; }
 `;
 
 const COVER_LETTER_CSS = `
@@ -55,6 +70,17 @@ function wrapHtml(css, bodyContent) {
 </html>`;
 }
 
+// Wrap the header (h1 + first p before first hr) in a flex container with photo
+function injectPhotoIntoHeader(htmlContent, photoSrc) {
+  if (!photoSrc) return htmlContent;
+  const photoDiv = `<div class="cv-header-photo"><img src="${photoSrc}" alt="photo"></div>`;
+  // Match the opening h1 tag and wrap everything up to (not including) the first <hr>
+  return htmlContent.replace(
+    /(<h1[\s\S]*?<\/h1>\s*<p[\s\S]*?<\/p>)/,
+    `<div class="cv-header"><div class="cv-header-text">$1</div>${photoDiv}</div>`
+  );
+}
+
 async function generatePdf(html) {
   const browser = await puppeteer.launch({
     headless: true,
@@ -74,8 +100,12 @@ async function generatePdf(html) {
   }
 }
 
-async function generateCvPdf(markdownContent) {
-  const html = wrapHtml(CV_CSS, marked(markdownContent));
+async function generateCvPdf(markdownContent, withPhoto = false) {
+  let body = marked(markdownContent);
+  if (withPhoto && PHOTO_B64) {
+    body = injectPhotoIntoHeader(body, PHOTO_B64);
+  }
+  const html = wrapHtml(CV_CSS, body);
   return generatePdf(html);
 }
 
