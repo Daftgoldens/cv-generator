@@ -59,10 +59,15 @@ app.get('/login', (req, res) => {
     h1 { font-size:16px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
          margin-bottom:4px; }
     p { font-size:11px; color:#666; margin-bottom:24px; }
-    input { width:100%; background:#1a1a1a; border:1px solid #333; border-radius:6px;
-            padding:12px 14px; color:#fff; font-size:13px; outline:none; margin-bottom:12px; }
-    input:focus { border-color:#555; }
-    button { width:100%; background:#fff; color:#000; border:none; border-radius:6px;
+    .pwd-wrap { position:relative; margin-bottom:12px; }
+    .pwd-wrap input { width:100%; background:#1a1a1a; border:1px solid #333; border-radius:6px;
+            padding:12px 40px 12px 14px; color:#fff; font-size:13px; outline:none; margin-bottom:0; }
+    .pwd-wrap input:focus { border-color:#555; }
+    .pwd-toggle { position:absolute; right:12px; top:50%; transform:translateY(-50%);
+                  background:none; border:none; color:#555; cursor:pointer; padding:0;
+                  font-size:16px; width:auto; letter-spacing:0; }
+    .pwd-toggle:hover { color:#aaa; }
+    button[type="submit"] { width:100%; background:#fff; color:#000; border:none; border-radius:6px;
              padding:12px; font-size:13px; font-weight:700; letter-spacing:1px;
              text-transform:uppercase; cursor:pointer; }
     .error { color:#f87171; font-size:11px; margin-top:8px; }
@@ -73,11 +78,20 @@ app.get('/login', (req, res) => {
     <h1>CV Generator</h1>
     <p>Baptiste Hoffmann — Personal Tool</p>
     <form method="POST" action="/login">
-      <input type="password" name="password" placeholder="Password" autofocus>
+      <div class="pwd-wrap">
+        <input type="password" id="pwd" name="password" placeholder="Password" autofocus>
+        <button type="button" class="pwd-toggle" onclick="togglePwd()" id="eyeBtn">👁</button>
+      </div>
       <button type="submit">Enter →</button>
       ${req.query.error ? '<p class="error">Wrong password</p>' : ''}
     </form>
   </div>
+  <script>
+    function togglePwd() {
+      const input = document.getElementById('pwd');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+  </script>
 </body>
 </html>`);
 });
