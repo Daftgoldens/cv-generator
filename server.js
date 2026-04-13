@@ -121,11 +121,13 @@ app.post('/api/detect-template', (req, res) => {
   const { offerContent, location } = req.body;
   if (!offerContent) return res.status(400).json({ error: 'Missing offerContent' });
   const language = detectLanguage(offerContent);
-  const suggestedLocation = extractLocation(offerContent);
-  const effectiveLocation = suggestedLocation || location || 'Paris, France';
+  const extractedLocation = extractLocation(offerContent);
+  const effectiveLocation = extractedLocation || location || 'Paris, France';
   const region = detectRegion(effectiveLocation);
   const template = selectTemplate(region, language);
-  res.json({ template, language, region, suggestedLocation });
+  // Always return a suggestedLocation so the UI field gets updated
+  const suggestedLocation = extractedLocation || (location && location !== 'Paris, France' ? location : null);
+  res.json({ template, language, region, suggestedLocation: suggestedLocation || effectiveLocation });
 });
 
 // --- API: fetch offer from URL ---
