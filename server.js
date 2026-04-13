@@ -1,5 +1,15 @@
 'use strict';
 require('dotenv').config();
+
+if (!process.env.PASSWORD) {
+  console.error('FATAL: PASSWORD env var is required');
+  process.exit(1);
+}
+if (!process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET env var is required');
+  process.exit(1);
+}
+
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
@@ -13,7 +23,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 } // 7 days
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  } // 7 days
 }));
 
 // --- Auth middleware ---
@@ -78,8 +92,7 @@ app.post('/login', express.urlencoded({ extended: false }), (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/login');
+  req.session.destroy(() => res.redirect('/login'));
 });
 
 // --- Static frontend ---
@@ -108,10 +121,20 @@ app.post('/api/fetch-offer', async (req, res) => {
 });
 
 // --- API: generate CV (+ optional cover letter) ---
+const VALID_TEMPLATES = new Set([
+  'CV_France.md',
+  'Resume_USA_Canada.md',
+  'Resume_Singapore_SouthKorea.md',
+  'Resume_Japan.md'
+]);
+
 app.post('/api/generate', async (req, res) => {
   const { offerContent, location, workMode, withCoverLetter, templateOverride } = req.body;
   if (!offerContent || !location) {
     return res.status(400).json({ error: 'offerContent and location are required' });
+  }
+  if (templateOverride && !VALID_TEMPLATES.has(templateOverride)) {
+    return res.status(400).json({ error: 'Invalid template' });
   }
   try {
     const result = await generate({
@@ -124,7 +147,7 @@ app.post('/api/generate', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Generation error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Generation failed. Check server logs.' });
   }
 });
 
