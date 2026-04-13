@@ -1,0 +1,19 @@
+{
+  "name": "cv-generator",
+  "version": "1.0.0",
+  "description": "Personal CV generator with Claude AI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.88.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "marked": "^18.0.0",
+    "puppeteer": "^24.40.0"
+  }
+}
