@@ -8,7 +8,8 @@ const FR_WORDS = ['nous', 'recherchons', 'pour', 'dans', 'notre', 'une', 'les', 
 
 function detectLanguage(text) {
   const lower = text.toLowerCase();
-  const frCount = FR_WORDS.filter(w => lower.includes(w)).length;
+  // require 3+ French indicator words to reduce false positives
+  const frCount = FR_WORDS.filter(w => new RegExp(`\\b${w}\\b`).test(lower)).length;
   return frCount >= 3 ? 'fr' : 'en';
 }
 
@@ -37,7 +38,11 @@ function selectTemplate(region, language) {
 }
 
 function loadTemplate(filename) {
-  return fs.readFileSync(path.join(TEMPLATES_DIR, filename), 'utf8');
+  const filePath = path.join(TEMPLATES_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Template not found: ${filename}`);
+  }
+  return fs.readFileSync(filePath, 'utf8');
 }
 
 module.exports = { detectLanguage, detectRegion, selectTemplate, loadTemplate };
