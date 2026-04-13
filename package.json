@@ -8,10 +8,13 @@
     "test": "node --test tests/"
   },
   "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1",
+    "express": "^4.21.2",
     "express-session": "^1.19.0",
     "marked": "^18.0.0",
     "puppeteer": "^24.40.0"
