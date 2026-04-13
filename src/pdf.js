@@ -6,25 +6,28 @@ const CV_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 9.5pt; line-height: 1.45; color: #1a1a1a;
-    padding: 18mm 16mm 14mm 16mm;
+    font-size: 9pt; line-height: 1.4; color: #1a1a1a;
+    padding: 13mm 14mm 11mm 14mm;
   }
   h1 {
-    font-size: 18pt; font-weight: 700; letter-spacing: 2px;
+    font-size: 17pt; font-weight: 700; letter-spacing: 2px;
     text-transform: uppercase; margin-bottom: 2px;
   }
-  h1 + p { font-size: 8.5pt; color: #444; margin-bottom: 12px; line-height: 1.6; }
-  hr { border: none; border-top: 1.5px solid #1a1a1a; margin: 8px 0; }
+  h1 + p { font-size: 8pt; color: #444; margin-bottom: 10px; line-height: 1.5; }
+  hr { border: none; border-top: 1.5px solid #1a1a1a; margin: 6px 0; }
   h2 {
-    font-size: 9pt; font-weight: 700; letter-spacing: 1.5px;
-    text-transform: uppercase; margin: 10px 0 5px 0;
+    font-size: 8.5pt; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; margin: 8px 0 4px 0;
     color: #1a1a1a; border-bottom: 0.5px solid #ccc; padding-bottom: 2px;
   }
-  p { font-size: 9pt; margin-bottom: 4px; color: #222; }
-  ul { padding-left: 14px; margin: 3px 0 6px 0; }
-  li { margin-bottom: 2px; font-size: 9pt; line-height: 1.4; }
+  p { font-size: 8.5pt; margin-bottom: 3px; color: #222; }
+  ul { padding-left: 13px; margin: 2px 0 5px 0; }
+  li { margin-bottom: 1px; font-size: 8.5pt; line-height: 1.35; }
   strong { font-weight: 700; }
   em { color: #555; font-style: italic; }
+  table { width: 100%; border-collapse: collapse; font-size: 8pt; margin: 3px 0 5px 0; }
+  td, th { padding: 2px 6px; vertical-align: top; }
+  td:first-child { white-space: nowrap; }
 `;
 
 const COVER_LETTER_CSS = `
