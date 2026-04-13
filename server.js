@@ -11,28 +11,29 @@ if (!process.env.SESSION_SECRET) {
 }
 
 const express = require('express');
-const session = require('express-session');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const { fetchOffer } = require('./src/fetch-offer.js');
 const { generate } = require('./src/generate.js');
 const { detectLanguage, detectRegion, selectTemplate } = require('./src/templates.js');
 
+const COOKIE_SECRET = process.env.SESSION_SECRET;
+const COOKIE_NAME = 'cv_auth';
+const COOKIE_OPTS = {
+  signed: true,
+  httpOnly: true,
+  sameSite: 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000
+};
+
 const app = express();
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '1mb' }));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  } // 7 days
-}));
+app.use(cookieParser(COOKIE_SECRET));
 
 // --- Auth middleware ---
 function requireAuth(req, res, next) {
-  if (req.session && req.session.authenticated) return next();
+  if (req.signedCookies[COOKIE_NAME] === '1') return next();
   if (req.path === '/login' || req.path === '/health') return next();
   res.redirect('/login');
 }
@@ -44,7 +45,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // --- Login page ---
 app.get('/login', (req, res) => {
-  if (req.session && req.session.authenticated) return res.redirect('/');
+  if (req.signedCookies[COOKIE_NAME] === '1') return res.redirect('/');
   res.send(`<!DOCTYPE html>
 <html>
 <head>
@@ -100,15 +101,16 @@ app.post('/login', express.urlencoded({ extended: false }), (req, res) => {
   const submitted = (req.body.password || '').trim();
   const expected = (process.env.PASSWORD || '').trim();
   if (submitted === expected) {
-    req.session.authenticated = true;
-    req.session.save(() => res.redirect('/'));
+    res.cookie(COOKIE_NAME, '1', COOKIE_OPTS);
+    res.redirect('/');
   } else {
     res.redirect('/login?error=1');
   }
 });
 
 app.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/login'));
+  res.clearCookie(COOKIE_NAME);
+  res.redirect('/login');
 });
 
 // --- Static frontend ---
