@@ -105,7 +105,7 @@ function injectPhotoIntoHeader(htmlContent, photoSrc) {
   );
 }
 
-async function generatePdf(html) {
+async function generatePdf(html, scale = 1) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -116,6 +116,7 @@ async function generatePdf(html) {
     const buffer = await page.pdf({
       format: 'A4',
       printBackground: true,
+      scale,
       margin: { top: '0', right: '0', bottom: '0', left: '0' }
     });
     return Buffer.from(buffer);
@@ -131,6 +132,33 @@ async function generateCvPdf(markdownContent, { withPhoto = false, compact = fal
   }
   const css = compact ? CV_CSS_FR : CV_CSS_EN;
   const html = wrapHtml(css, body);
+
+  if (compact) {
+    // Render once, measure page count, shrink scale until it fits on 1 page
+    const browser = await require('puppeteer').launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      // A4 height in px at 96dpi = 1122.5px
+      const A4_PX = 1122;
+      const bodyHeight = await page.evaluate(() => document.body.scrollHeight);
+      // Calculate scale needed to fit, clamp between 0.7 and 1
+      const scale = Math.min(1, Math.max(0.7, A4_PX / bodyHeight));
+      const buffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        scale,
+        margin: { top: '0', right: '0', bottom: '0', left: '0' }
+      });
+      return Buffer.from(buffer);
+    } finally {
+      await browser.close();
+    }
+  }
+
   return generatePdf(html);
 }
 
