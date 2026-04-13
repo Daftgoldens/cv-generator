@@ -121,8 +121,9 @@ app.post('/api/detect-template', (req, res) => {
   const { offerContent, location } = req.body;
   if (!offerContent) return res.status(400).json({ error: 'Missing offerContent' });
   const language = detectLanguage(offerContent);
-  const suggestedLocation = extractLocation(offerContent) || location || 'Paris, France';
-  const region = detectRegion(suggestedLocation);
+  const suggestedLocation = extractLocation(offerContent);
+  const effectiveLocation = suggestedLocation || location || 'Paris, France';
+  const region = detectRegion(effectiveLocation);
   const template = selectTemplate(region, language);
   res.json({ template, language, region, suggestedLocation });
 });

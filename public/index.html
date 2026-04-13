@@ -224,12 +224,9 @@
       const data = await res.json();
       detectedTemplate = data.template;
       document.getElementById('templateDisplay').textContent = data.template;
-      // Auto-fill location if the field is empty or still default and we detected something
+      // Auto-fill location only when we actually extracted something from the offer
       if (data.suggestedLocation) {
-        const locField = document.getElementById('location');
-        if (!locField.value.trim() || locField.value.trim() === 'Paris, France') {
-          locField.value = data.suggestedLocation;
-        }
+        document.getElementById('location').value = data.suggestedLocation;
       }
     } catch (e) { /* silent */ }
   }
