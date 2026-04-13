@@ -21,10 +21,12 @@ RULES:
 - Keep the exact same markdown structure and section order as the template
 - Remove any template instructions or comments (lines starting with # VERSION, FORMAT:, etc.)
 - Ensure 1-page worth of content — remove sections if needed to stay tight
-- Return ONLY valid JSON, no markdown code blocks, no extra text
-
-Return this exact JSON structure:
-{"markdown":"<full adapted CV in markdown>","company":"<company name from offer>","role":"<job title from offer>"}`,
+Return your response in this exact format and nothing else:
+<company>company name from offer</company>
+<role>job title from offer</role>
+<cv>
+full adapted CV in markdown here
+</cv>`,
         cache_control: { type: 'ephemeral' }
       }
     ],
@@ -37,14 +39,10 @@ Return this exact JSON structure:
   });
 
   const raw = response.content[0].text.trim();
-  // Strip potential code fences if Claude added them
-  const clean = raw.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
-  const parsed = JSON.parse(clean);
-  return {
-    markdown: parsed.markdown,
-    company: parsed.company || 'Company',
-    role: parsed.role || 'Role'
-  };
+  const company = (raw.match(/<company>([\s\S]*?)<\/company>/) || [])[1]?.trim() || 'Company';
+  const role = (raw.match(/<role>([\s\S]*?)<\/role>/) || [])[1]?.trim() || 'Role';
+  const markdown = (raw.match(/<cv>([\s\S]*?)<\/cv>/) || [])[1]?.trim() || raw;
+  return { markdown, company, role };
 }
 
 async function generateCoverLetter(offerContent, language, company, role, location) {
