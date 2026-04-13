@@ -13,17 +13,15 @@ const PHOTO_B64 = (() => {
   }
 })();
 
-const CV_CSS = `
+// Compact CSS — French CV (one page, with photo slot)
+const CV_CSS_FR = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 9pt; line-height: 1.4; color: #1a1a1a;
     padding: 13mm 14mm 11mm 14mm;
   }
-  h1 {
-    font-size: 17pt; font-weight: 700; letter-spacing: 2px;
-    text-transform: uppercase; margin-bottom: 2px;
-  }
+  h1 { font-size: 17pt; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
   h1 + p { font-size: 8pt; color: #444; margin-bottom: 10px; line-height: 1.5; }
   hr { border: none; border-top: 1.5px solid #1a1a1a; margin: 6px 0; }
   h2 {
@@ -43,6 +41,32 @@ const CV_CSS = `
   .cv-header-text { flex: 1; }
   .cv-header-photo { flex-shrink: 0; margin-left: 14px; }
   .cv-header-photo img { width: 28mm; height: 35mm; object-fit: cover; border-radius: 2px; display: block; }
+`;
+
+// Standard CSS — English resumes (USA, Singapore, Japan)
+const CV_CSS_EN = `
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 9.5pt; line-height: 1.45; color: #1a1a1a;
+    padding: 16mm 16mm 14mm 16mm;
+  }
+  h1 { font-size: 20pt; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
+  h1 + p { font-size: 8.5pt; color: #444; margin-bottom: 12px; line-height: 1.6; }
+  hr { border: none; border-top: 1.5px solid #1a1a1a; margin: 8px 0; }
+  h2 {
+    font-size: 9pt; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; margin: 12px 0 5px 0;
+    color: #1a1a1a; border-bottom: 0.5px solid #ccc; padding-bottom: 2px;
+  }
+  p { font-size: 9pt; margin-bottom: 4px; color: #222; }
+  ul { padding-left: 14px; margin: 3px 0 6px 0; }
+  li { margin-bottom: 2px; font-size: 9pt; line-height: 1.4; }
+  strong { font-weight: 700; }
+  em { color: #555; font-style: italic; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin: 4px 0 6px 0; }
+  td, th { padding: 3px 6px; vertical-align: top; }
+  td:first-child { white-space: nowrap; }
 `;
 
 const COVER_LETTER_CSS = `
@@ -100,12 +124,13 @@ async function generatePdf(html) {
   }
 }
 
-async function generateCvPdf(markdownContent, withPhoto = false) {
+async function generateCvPdf(markdownContent, { withPhoto = false, compact = false } = {}) {
   let body = marked(markdownContent);
   if (withPhoto && PHOTO_B64) {
     body = injectPhotoIntoHeader(body, PHOTO_B64);
   }
-  const html = wrapHtml(CV_CSS, body);
+  const css = compact ? CV_CSS_FR : CV_CSS_EN;
+  const html = wrapHtml(css, body);
   return generatePdf(html);
 }
 
