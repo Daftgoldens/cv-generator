@@ -1,11 +1,13 @@
 'use strict';
-const { detectLanguage, detectRegion, selectTemplate, loadTemplate } = require('./templates.js');
+const { detectLanguage, detectRegion, selectTemplate, loadTemplate, extractLocation } = require('./templates.js');
 const { adaptCv, generateCoverLetter } = require('./claude.js');
 const { generateCvPdf, generateCoverLetterPdf } = require('./pdf.js');
 
 async function generate({ offerContent, location, workMode, withCoverLetter, templateOverride }) {
   const language = detectLanguage(offerContent);
-  const region = detectRegion(location);
+  // Always try to extract location from offer content; fall back to what the client sent
+  const effectiveLocation = extractLocation(offerContent) || location || 'Paris, France';
+  const region = detectRegion(effectiveLocation);
   const templateFile = templateOverride || selectTemplate(region, language);
   const templateMd = loadTemplate(templateFile);
 
