@@ -211,11 +211,11 @@
   }
 
   async function detectTemplate() {
-    const offer = document.getElementById('offerContent').value;
-    const location = document.getElementById('location').value;
+    const offer = document.getElementById('offerContent').value.trim();
+    const location = document.getElementById('location').value.trim();
     const override = document.getElementById('templateOverride').value;
     if (override) return;
-    if (!offer || !location) { document.getElementById('templateDisplay').textContent = '—'; return; }
+    if (!offer) { document.getElementById('templateDisplay').textContent = '—'; return; }
     try {
       const res = await fetch('/api/detect-template', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -224,6 +224,13 @@
       const data = await res.json();
       detectedTemplate = data.template;
       document.getElementById('templateDisplay').textContent = data.template;
+      // Auto-fill location if the field is empty or still default and we detected something
+      if (data.suggestedLocation) {
+        const locField = document.getElementById('location');
+        if (!locField.value.trim() || locField.value.trim() === 'Paris, France') {
+          locField.value = data.suggestedLocation;
+        }
+      }
     } catch (e) { /* silent */ }
   }
 

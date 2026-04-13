@@ -15,7 +15,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const { fetchOffer } = require('./src/fetch-offer.js');
 const { generate } = require('./src/generate.js');
-const { detectLanguage, detectRegion, selectTemplate } = require('./src/templates.js');
+const { detectLanguage, detectRegion, selectTemplate, extractLocation } = require('./src/templates.js');
 
 const COOKIE_SECRET = process.env.SESSION_SECRET;
 const COOKIE_NAME = 'cv_auth';
@@ -119,11 +119,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 // --- API: detect template from offer + location ---
 app.post('/api/detect-template', (req, res) => {
   const { offerContent, location } = req.body;
-  if (!offerContent || !location) return res.status(400).json({ error: 'Missing fields' });
+  if (!offerContent) return res.status(400).json({ error: 'Missing offerContent' });
   const language = detectLanguage(offerContent);
-  const region = detectRegion(location);
+  const suggestedLocation = extractLocation(offerContent) || location || 'Paris, France';
+  const region = detectRegion(suggestedLocation);
   const template = selectTemplate(region, language);
-  res.json({ template, language, region });
+  res.json({ template, language, region, suggestedLocation });
 });
 
 // --- API: fetch offer from URL ---
