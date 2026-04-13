@@ -97,7 +97,7 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', express.urlencoded({ extended: false }), (req, res) => {
-  if (req.body.password === process.env.PASSWORD) {
+  if (req.body.password.trim() === (process.env.PASSWORD || '').trim()) {
     req.session.authenticated = true;
     res.redirect('/');
   } else {
