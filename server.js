@@ -125,9 +125,8 @@ app.post('/api/detect-template', (req, res) => {
   const effectiveLocation = extractedLocation || location || 'Paris, France';
   const region = detectRegion(effectiveLocation);
   const template = selectTemplate(region, language);
-  // Always return a suggestedLocation so the UI field gets updated
-  const suggestedLocation = extractedLocation || (location && location !== 'Paris, France' ? location : null);
-  res.json({ template, language, region, suggestedLocation: suggestedLocation || effectiveLocation });
+  // Only suggest a location when we actually extracted one from the offer text
+  res.json({ template, language, region, suggestedLocation: extractedLocation || null });
 });
 
 // --- API: fetch offer from URL ---
