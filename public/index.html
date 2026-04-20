@@ -1,337 +1,787 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CV Generator</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0f0f0f; color: #fff; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; min-height: 100vh; padding: 40px 20px; }
-    .container { max-width: 680px; margin: 0 auto; }
-    .header { border-bottom: 1px solid #222; padding-bottom: 16px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
-    .header h1 { font-size: 18px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
-    .header p { font-size: 11px; color: #666; margin-top: 2px; }
-    .logout { font-size: 11px; color: #555; text-decoration: none; }
+    body { background: #0f0f0f; color: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; }
+    .top-bar { border-bottom: 1px solid #1e1e1e; padding: 0 24px; display: flex; align-items: center; gap: 0; height: 48px; }
+    .app-title { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; margin-right: 32px; white-space: nowrap; }
+    .tabs { display: flex; gap: 0; flex: 1; }
+    .tab-btn { background: none; border: none; color: #555; font-size: 12px; font-weight: 500; padding: 0 16px; height: 48px; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; letter-spacing: 0.5px; }
+    .tab-btn:hover { color: #aaa; }
+    .tab-btn.active { color: #fff; border-bottom-color: #4ade80; }
+    .logout { margin-left: auto; font-size: 11px; color: #444; text-decoration: none; }
     .logout:hover { color: #aaa; }
-    .label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: #888; text-transform: uppercase; margin-bottom: 8px; }
-    .field { margin-bottom: 20px; }
-    input[type="text"], textarea {
-      width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px;
-      padding: 10px 14px; color: #fff; font-size: 12px; font-family: inherit;
-      outline: none; resize: vertical;
+    .container { max-width: 760px; margin: 0 auto; padding: 32px 20px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: #666; text-transform: uppercase; margin-bottom: 8px; }
+    .field { margin-bottom: 18px; }
+    input[type="text"], textarea, select {
+      width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px;
+      padding: 10px 14px; color: #fff; font-size: 12px; font-family: inherit; outline: none; resize: vertical;
     }
-    input[type="text"]:focus, textarea:focus { border-color: #555; }
-    textarea { min-height: 90px; line-height: 1.5; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .url-row { display: flex; gap: 8px; margin-bottom: 8px; }
-    .url-row input { flex: 1; }
-    .fetch-btn {
-      background: #222; border: 1px solid #333; border-radius: 6px;
-      padding: 10px 16px; color: #aaa; font-size: 12px; cursor: pointer;
-      white-space: nowrap;
-    }
-    .fetch-btn:hover { background: #2a2a2a; color: #fff; }
-    .fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .work-mode { display: flex; gap: 6px; }
-    .mode-btn {
-      background: #1a1a1a; border: 1px solid #333; border-radius: 4px;
-      padding: 7px 12px; font-size: 11px; color: #666; cursor: pointer;
-    }
-    .mode-btn.active { background: #333; border-color: #555; color: #fff; }
-    .mode-btn:hover:not(.active) { border-color: #444; color: #aaa; }
-    .template-row {
-      background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px;
-      padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
-    }
-    .template-label { font-size: 11px; color: #666; }
-    .template-value { font-size: 11px; color: #4ade80; font-weight: 600; }
-    .template-change { margin-left: auto; font-size: 10px; color: #555; cursor: pointer; text-decoration: underline; background: none; border: none; color: #555; }
-    .template-change:hover { color: #aaa; }
-    select {
-      background: #1a1a1a; border: 1px solid #333; border-radius: 4px;
-      padding: 5px 8px; color: #aaa; font-size: 11px; outline: none;
-      display: none;
-    }
-    select.visible { display: inline-block; }
-    .toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; cursor: pointer; }
-    .toggle { width: 36px; height: 20px; border-radius: 10px; background: #333; position: relative; transition: background 0.2s; flex-shrink: 0; }
-    .toggle.on { background: #4ade80; }
-    .toggle::after { content: ''; width: 16px; height: 16px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.2s; }
-    .toggle.on::after { left: 18px; }
-    .toggle-label { font-size: 12px; color: #ccc; }
-    .generate-btn {
-      width: 100%; background: #fff; color: #000; border: none; border-radius: 6px;
-      padding: 13px; font-size: 13px; font-weight: 700; letter-spacing: 1px;
-      text-transform: uppercase; cursor: pointer; margin-bottom: 24px;
-    }
-    .generate-btn:hover { background: #eee; }
-    .generate-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
-    .status { font-size: 12px; color: #888; text-align: center; margin-bottom: 16px; min-height: 18px; }
-    .status.error { color: #f87171; }
-    .results { display: flex; gap: 10px; }
-    .result-card {
-      flex: 1; border: 1px dashed #2a2a2a; border-radius: 6px;
-      padding: 16px; text-align: center;
-    }
-    .result-card.ready { border-color: #4ade80; border-style: solid; background: #0a1a0a; }
-    .result-card .rc-label { font-size: 10px; letter-spacing: 1px; color: #555; text-transform: uppercase; margin-bottom: 6px; }
-    .result-card .rc-label.ready { color: #4ade80; }
-    .result-card a {
-      display: inline-block; background: #4ade80; color: #000; border-radius: 4px;
-      padding: 7px 16px; font-size: 11px; font-weight: 700; text-decoration: none;
-      letter-spacing: 0.5px; margin-top: 4px;
-    }
-    .result-card .placeholder { font-size: 11px; color: #444; }
-    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    input[type="text"]:focus, textarea:focus, select:focus { border-color: #444; }
+    textarea { min-height: 100px; line-height: 1.5; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .mode-row { display: flex; gap: 6px; }
+    .mode-btn { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px; padding: 7px 12px; font-size: 11px; color: #555; cursor: pointer; transition: all 0.1s; }
+    .mode-btn.active { background: #222; border-color: #444; color: #fff; }
+    .mode-btn:hover:not(.active) { color: #aaa; }
+    .btn-primary { background: #fff; color: #000; border: none; border-radius: 6px; padding: 10px 20px; font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; }
+    .btn-primary:hover { background: #e8e8e8; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 16px; font-size: 11px; cursor: pointer; }
+    .btn-secondary:hover { border-color: #444; color: #fff; }
+    .btn-small { background: none; border: 1px solid #2a2a2a; border-radius: 4px; padding: 4px 10px; font-size: 10px; color: #666; cursor: pointer; }
+    .btn-small:hover { border-color: #444; color: #aaa; }
+    .fetch-btn { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 10px 16px; color: #888; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .fetch-btn:hover { color: #fff; border-color: #444; }
+
+    /* Score bar */
+    .score-bar { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 16px 20px; margin: 20px 0; display: flex; align-items: center; gap: 16px; }
+    .score-value { font-size: 22px; font-weight: 700; color: #4ade80; font-variant-numeric: tabular-nums; }
+    .score-dots { display: flex; gap: 4px; }
+    .score-dot { width: 8px; height: 8px; border-radius: 50%; background: #333; }
+    .score-dot.filled { background: #4ade80; }
+    .score-actions { margin-left: auto; display: flex; gap: 8px; }
+
+    /* Streaming blocks */
+    #eval-stream { margin-top: 20px; }
+    .eval-block { background: #111; border: 1px solid #1e1e1e; border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+    .eval-block-header { padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+    .eval-block-id { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #4ade80; background: #0a2a1a; padding: 2px 7px; border-radius: 3px; }
+    .eval-block-title { font-size: 12px; color: #ccc; font-weight: 500; flex: 1; }
+    .eval-block-chevron { font-size: 10px; color: #444; transition: transform 0.15s; }
+    .eval-block.collapsed .eval-block-chevron { transform: rotate(-90deg); }
+    .eval-block-body { padding: 12px 16px 16px; border-top: 1px solid #1e1e1e; font-size: 11.5px; line-height: 1.7; color: #ccc; }
+    .eval-block.collapsed .eval-block-body { display: none; }
+    .eval-block-body p { margin-bottom: 10px; }
+    .eval-block-body table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 8px 0; }
+    .eval-block-body th { text-align: left; padding: 5px 8px; background: #1a1a1a; color: #888; font-size: 10px; letter-spacing: 0.5px; border-bottom: 1px solid #222; }
+    .eval-block-body td { padding: 5px 8px; border-bottom: 1px solid #1a1a1a; vertical-align: top; }
+    .eval-block-body strong { color: #fff; font-weight: 600; }
+    .eval-block-body code { background: #1a1a1a; padding: 1px 5px; border-radius: 3px; font-size: 10.5px; color: #a3e6cb; }
+    .eval-block-body ul { padding-left: 18px; }
+    .eval-block-body li { margin-bottom: 4px; }
+    .eval-streaming .eval-block-body::after { content: '▋'; animation: blink 0.7s step-end infinite; color: #4ade80; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .status-msg { font-size: 11px; color: #666; margin-top: 8px; }
+    .status-msg.error { color: #f87171; }
+
+    /* Tracker table */
+    .tracker-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+    .tracker-table th { text-align: left; padding: 8px 10px; color: #555; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid #1e1e1e; }
+    .tracker-table td { padding: 10px 10px; border-bottom: 1px solid #111; vertical-align: top; }
+    .tracker-table tr:hover td { background: #111; cursor: pointer; }
+    .tracker-filters { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+    .tracker-filter-btn { background: #1a1a1a; border: 1px solid #222; border-radius: 4px; padding: 5px 10px; font-size: 10px; color: #555; cursor: pointer; }
+    .tracker-filter-btn.active { background: #222; border-color: #444; color: #fff; }
+    .status-badge { font-size: 9px; font-weight: 600; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; }
+    .status-Evaluated { background: #1a2a3a; color: #60a5fa; }
+    .status-Applied { background: #1a3a1a; color: #4ade80; }
+    .status-Interview { background: #2a2a1a; color: #fbbf24; }
+    .status-Offer { background: #2a1a3a; color: #c084fc; }
+    .status-Rejected { background: #2a1a1a; color: #f87171; }
+    .status-Discarded { background: #1a1a1a; color: #555; }
+    .status-SKIP { background: #1a1a1a; color: #444; }
+    .score-chip { font-size: 10px; font-weight: 600; color: #4ade80; }
+
+    /* Expanded row */
+    .tracker-expanded { background: #0d0d0d; border-bottom: 1px solid #1e1e1e; padding: 16px; display: none; }
+    .tracker-expanded.open { display: block; }
+    .tracker-expanded .report-md { font-size: 11px; line-height: 1.7; color: #999; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+    .tracker-row-actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+    .tracker-status-select { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 11px; }
+
+    /* Download cards */
+    .result-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+    .result-card { background: #111; border: 1px dashed #222; border-radius: 8px; padding: 16px; }
+    .result-card.ready { border-color: #4ade80; border-style: solid; }
+    .result-card-title { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .result-card-file { font-size: 11px; color: #888; margin-bottom: 10px; font-family: monospace; }
+    .download-btn { display: inline-block; background: #4ade80; color: #000; padding: 7px 14px; border-radius: 5px; font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; }
+    .download-btn:hover { background: #6ff098; }
+
+    /* Toggle */
+    .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .toggle { position: relative; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #222; border-radius: 20px; cursor: pointer; transition: 0.2s; border: 1px solid #333; }
+    .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 2px; top: 2px; background: #555; border-radius: 50%; transition: 0.2s; }
+    .toggle input:checked + .toggle-slider { background: #1a3a2a; border-color: #4ade80; }
+    .toggle input:checked + .toggle-slider::before { background: #4ade80; transform: translateX(16px); }
+
+    /* Pipeline */
+    .pipeline-list { list-style: none; }
+    .pipeline-item { background: #111; border: 1px solid #1e1e1e; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .pipeline-item.processed { opacity: 0.35; }
+    .pipeline-url { font-size: 11px; color: #4ade80; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; text-decoration: none; }
+    .pipeline-url:hover { text-decoration: underline; }
+    .pipeline-title { font-size: 11px; color: #888; }
+    .pipeline-add { display: flex; gap: 8px; margin-bottom: 16px; }
+    .pipeline-add input { flex: 1; }
+
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #333; border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    .section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+    .section-title { font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+    .section-subtitle { font-size: 11px; color: #555; }
+
+    /* Template row */
+    .template-info { background: #111; border: 1px solid #1e1e1e; border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: 11px; }
+    .template-detected { color: #4ade80; font-weight: 600; }
+    .template-change { margin-left: auto; background: none; border: none; color: #444; font-size: 10px; cursor: pointer; text-decoration: underline; }
+    .template-change:hover { color: #aaa; }
+    select.template-select { display: none; }
+    select.template-select.visible { display: block; width: auto; padding: 5px 8px; }
   </style>
 </head>
 <body>
+
+<div class="top-bar">
+  <span class="app-title">CV Generator</span>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('evaluate', this)">Évaluer</button>
+    <button class="tab-btn" onclick="showTab('generate', this)">Générer</button>
+    <button class="tab-btn" onclick="showTab('tracker', this)">Tracker</button>
+    <button class="tab-btn" onclick="showTab('pipeline', this)">Pipeline</button>
+  </div>
+  <a class="logout" href="/logout">logout</a>
+</div>
+
 <div class="container">
 
-  <div class="header">
-    <div>
-      <h1>CV Generator</h1>
-      <p>Baptiste Hoffmann — Personal Tool</p>
+  <!-- ===== ÉVALUER ===== -->
+  <div class="tab-content active" id="tab-evaluate">
+    <div class="section-header">
+      <span class="section-title">Évaluer une offre</span>
+      <span class="section-subtitle">Analyse A-F · Score · Keywords ATS</span>
     </div>
-    <a href="/logout" class="logout">Logout</a>
-  </div>
 
-  <!-- Job Offer -->
-  <div class="field">
-    <div class="label">Offre d'emploi</div>
-    <div class="url-row">
-      <input type="text" id="offerUrl" placeholder="https://linkedin.com/jobs/... ou URL de l'offre">
-      <button class="fetch-btn" id="fetchBtn" onclick="fetchOffer()">Fetch →</button>
-    </div>
-    <textarea id="offerContent" placeholder="Ou colle le contenu de l'offre ici directement..." oninput="onOfferChange(true)"></textarea>
-  </div>
-
-  <!-- Location + Work Mode -->
-  <div class="row">
     <div class="field">
-      <div class="label">Lieu</div>
-      <input type="text" id="location" placeholder="Paris, France" value="Paris, France" oninput="onLocationManualEdit()">
-    </div>
-    <div class="field">
-      <div class="label">Mode de travail</div>
-      <div class="work-mode" id="workMode">
-        <button class="mode-btn active" onclick="setMode(this, 'remote')">Remote</button>
-        <button class="mode-btn" onclick="setMode(this, 'hybrid')">Hybrid</button>
-        <button class="mode-btn" onclick="setMode(this, 'on-site')">On-site</button>
+      <div class="label">URL de l'offre</div>
+      <div class="row">
+        <input type="text" id="eval-url" placeholder="https://jobs.ashbyhq.com/..." />
+        <button class="fetch-btn" onclick="evalFetchOffer()">Fetch →</button>
       </div>
     </div>
-  </div>
 
-  <!-- Template auto-detected -->
-  <div class="template-row">
-    <span class="template-label">Template détecté :</span>
-    <span class="template-value" id="templateDisplay">—</span>
-    <button class="template-change" onclick="toggleTemplateOverride()">Changer</button>
-    <select id="templateOverride" onchange="onTemplateOverride()">
-      <option value="">Auto</option>
-      <option value="CV_France.md">CV_France.md (FR)</option>
-      <option value="Resume_USA_Canada.md">Resume_USA_Canada.md (EN)</option>
-      <option value="Resume_Singapore_SouthKorea.md">Resume_Singapore_SouthKorea.md</option>
-      <option value="Resume_Japan.md">Resume_Japan.md</option>
-    </select>
-  </div>
-
-  <!-- Cover Letter Toggle -->
-  <div class="toggle-row" onclick="toggleCoverLetter()">
-    <div class="toggle" id="clToggle"></div>
-    <span class="toggle-label">Générer aussi une lettre de motivation</span>
-  </div>
-
-  <!-- Generate Button -->
-  <button class="generate-btn" id="generateBtn" onclick="startGeneration()">Générer →</button>
-
-  <!-- Status -->
-  <div class="status" id="status"></div>
-
-  <!-- Results -->
-  <div class="results">
-    <div class="result-card" id="cvCard">
-      <div class="rc-label">CV adapté</div>
-      <div class="placeholder">Apparaîtra ici après génération</div>
+    <div class="field">
+      <div class="label">Contenu de l'offre</div>
+      <textarea id="eval-offer" rows="6" placeholder="Coller l'offre ici, ou utiliser Fetch →"></textarea>
     </div>
-    <div class="result-card" id="clCard">
-      <div class="rc-label">Lettre de motivation</div>
-      <div class="placeholder">Option désactivée</div>
+
+    <div class="field">
+      <div class="label">Langue</div>
+      <div class="mode-row">
+        <button class="mode-btn active" id="lang-auto" onclick="setLang('auto')">Auto</button>
+        <button class="mode-btn" id="lang-fr" onclick="setLang('fr')">FR</button>
+        <button class="mode-btn" id="lang-en" onclick="setLang('en')">EN</button>
+      </div>
     </div>
+
+    <button class="btn-primary" id="eval-btn" onclick="startEvaluation()">▶ Évaluer</button>
+    <span class="status-msg" id="eval-status"></span>
+
+    <div id="eval-score-bar" style="display:none">
+      <div class="score-bar">
+        <div>
+          <div class="label" style="margin-bottom:4px">Score global</div>
+          <span class="score-value" id="eval-score-value">—</span>
+          <span style="font-size:12px;color:#555">/5</span>
+        </div>
+        <div class="score-dots" id="eval-score-dots"></div>
+        <div class="score-actions">
+          <button class="btn-secondary" onclick="saveToTracker()">+ Tracker</button>
+          <button class="btn-primary" id="eval-generate-btn" onclick="goGenerate()" disabled>→ Générer le CV</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="eval-stream"></div>
+  </div>
+
+  <!-- ===== GÉNÉRER ===== -->
+  <div class="tab-content" id="tab-generate">
+    <div class="section-header">
+      <span class="section-title">Générer le CV</span>
+      <span class="section-subtitle">PDF adapté + lettre de motivation</span>
+    </div>
+
+    <div class="field">
+      <div class="label">Offre (pré-remplie depuis l'évaluation)</div>
+      <textarea id="gen-offer" rows="5" placeholder="Contenu de l'offre..."></textarea>
+    </div>
+
+    <div class="field">
+      <div class="label">Lieu</div>
+      <input type="text" id="gen-location" value="Paris, France" />
+    </div>
+
+    <div class="field">
+      <div class="label">Mode de travail</div>
+      <div class="mode-row">
+        <button class="mode-btn active" id="work-remote" onclick="setWork('remote')">Remote</button>
+        <button class="mode-btn" id="work-hybrid" onclick="setWork('hybrid')">Hybride</button>
+        <button class="mode-btn" id="work-onsite" onclick="setWork('on-site')">Sur site</button>
+      </div>
+    </div>
+
+    <div class="template-info">
+      <span class="template-label" style="color:#555;font-size:11px">Template :</span>
+      <span class="template-detected" id="gen-template-name">Auto-détecté</span>
+      <button class="template-change" onclick="toggleTemplateOverride()">Changer</button>
+      <select class="template-select" id="gen-template-select" onchange="onTemplateSelect()">
+        <option value="">Auto</option>
+        <option value="CV_France.md">CV_France.md</option>
+        <option value="Resume_USA_Canada.md">Resume_USA_Canada.md</option>
+        <option value="Resume_Singapore_SouthKorea.md">Resume_Singapore_SouthKorea.md</option>
+        <option value="Resume_Japan.md">Resume_Japan.md</option>
+      </select>
+    </div>
+
+    <div class="toggle-row">
+      <label class="toggle"><input type="checkbox" id="gen-coverletter" onchange="toggleCoverLetter()"><span class="toggle-slider"></span></label>
+      <span class="label" style="margin-bottom:0">Lettre de motivation</span>
+    </div>
+
+    <button class="btn-primary" id="gen-btn" onclick="startGeneration()">▶ Générer</button>
+    <span class="status-msg" id="gen-status"></span>
+
+    <div class="result-cards">
+      <div class="result-card" id="card-cv">
+        <div class="result-card-title">CV adapté</div>
+        <div class="result-card-file" id="cv-filename">— Apparaîtra ici</div>
+        <div id="cv-download"></div>
+      </div>
+      <div class="result-card" id="card-cl" style="display:none">
+        <div class="result-card-title">Lettre de motivation</div>
+        <div class="result-card-file" id="cl-filename">— Apparaîtra ici</div>
+        <div id="cl-download"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;display:none" id="gen-tracker-row">
+      <button class="btn-secondary" onclick="saveGeneratedToTracker()">+ Enregistrer dans le tracker</button>
+    </div>
+  </div>
+
+  <!-- ===== TRACKER ===== -->
+  <div class="tab-content" id="tab-tracker">
+    <div class="section-header">
+      <span class="section-title">Tracker</span>
+      <span class="section-subtitle" id="tracker-count"></span>
+    </div>
+    <div class="tracker-filters">
+      <span class="label" style="margin-bottom:0">Statut :</span>
+      <button class="tracker-filter-btn active" onclick="filterTracker('')">Tous</button>
+      <button class="tracker-filter-btn" onclick="filterTracker('Evaluated')">Evaluated</button>
+      <button class="tracker-filter-btn" onclick="filterTracker('Applied')">Applied</button>
+      <button class="tracker-filter-btn" onclick="filterTracker('Interview')">Interview</button>
+      <button class="tracker-filter-btn" onclick="filterTracker('Offer')">Offer</button>
+      <button class="tracker-filter-btn" onclick="filterTracker('Rejected')">Rejected</button>
+    </div>
+    <div id="tracker-table-wrap">
+      <table class="tracker-table" id="tracker-table">
+        <thead><tr>
+          <th>Date</th><th>Entreprise</th><th>Poste</th>
+          <th>Score</th><th>Statut</th><th>Notes</th>
+        </tr></thead>
+        <tbody id="tracker-tbody"></tbody>
+      </table>
+    </div>
+    <div class="status-msg" id="tracker-status"></div>
+  </div>
+
+  <!-- ===== PIPELINE ===== -->
+  <div class="tab-content" id="tab-pipeline">
+    <div class="section-header">
+      <span class="section-title">Pipeline</span>
+      <span class="section-subtitle">URLs à traiter</span>
+    </div>
+    <div class="pipeline-add">
+      <input type="text" id="pipeline-url-input" placeholder="https://jobs.ashbyhq.com/..." />
+      <input type="text" id="pipeline-title-input" placeholder="Titre (optionnel)" style="max-width:200px" />
+      <button class="btn-primary" onclick="addPipelineItem()">+ Ajouter</button>
+    </div>
+    <ul class="pipeline-list" id="pipeline-list"></ul>
+    <div class="status-msg" id="pipeline-status"></div>
   </div>
 
 </div>
-<script>
-  let selectedMode = 'remote';
-  let coverLetterEnabled = false;
-  let detectedTemplate = null;
-  let detectTimeout = null;
-  let locationLocked = false; // true once user manually edits the location field
 
-  function setMode(btn, mode) {
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedMode = mode;
+<script>
+  // ===== STATE =====
+  let currentTab = 'evaluate';
+  let selectedLang = 'auto';
+  let selectedWork = 'remote';
+  let evalResult = null;
+  let trackerData = [];
+  let trackerFilter = '';
+  let templateOverride = '';
+
+  // ===== TABS =====
+  function showTab(tab, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (btn) btn.classList.add('active');
+    currentTab = tab;
+    if (tab === 'tracker') loadTracker();
+    if (tab === 'pipeline') loadPipeline();
   }
+
+  // ===== LANG / WORK MODE =====
+  function setLang(lang) {
+    selectedLang = lang;
+    ['auto','fr','en'].forEach(l => document.getElementById('lang-'+l).classList.toggle('active', l === lang));
+  }
+
+  function setWork(work) {
+    selectedWork = work;
+    ['remote','hybrid','on-site'].forEach(w => {
+      const id = 'work-' + w.replace('-', '');
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('active', w === work);
+    });
+  }
+
+  // ===== TEMPLATE =====
+  function toggleTemplateOverride() {
+    document.getElementById('gen-template-select').classList.toggle('visible');
+  }
+  function onTemplateSelect() {
+    templateOverride = document.getElementById('gen-template-select').value;
+    document.getElementById('gen-template-name').textContent = templateOverride || 'Auto-détecté';
+  }
+
+  // ===== FETCH OFFER =====
+  async function evalFetchOffer() {
+    const url = document.getElementById('eval-url').value.trim();
+    if (!url) return;
+    setEvalStatus('Chargement...');
+    try {
+      const r = await fetch('/api/fetch-offer', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ url }) });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      document.getElementById('eval-offer').value = d.content;
+      setEvalStatus('');
+    } catch (e) {
+      setEvalStatus(e.message, true);
+    }
+  }
+
+  // ===== EVALUATION (SSE) =====
+  const BLOCK_TITLES = { A: 'Fiche signalétique', B: 'Match CV', C: 'Niveau & stratégie', D: 'Rémunération & marché', E: 'Plan personnalisation', F: 'Préparation entretien', G: "Légitimité de l'offre" };
+
+  function setEvalStatus(msg, isError) {
+    const el = document.getElementById('eval-status');
+    el.textContent = msg;
+    el.className = 'status-msg' + (isError ? ' error' : '');
+  }
+
+  function markdownToHtml(md) {
+    return md
+      .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+      .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/^\s*[-•]\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, s => '<ul>' + s + '</ul>')
+      .replace(/\n\n/g, '</p><p>')
+      .trim();
+  }
+
+  let currentBlockId = null;
+  let blockContents = {};
+
+  function detectBlockId(text) {
+    const m = text.match(/^##\s+Bloc\s+([A-G])\b/im) || text.match(/^\*\*Bloc\s+([A-G])\*\*/im);
+    return m ? m[1] : null;
+  }
+
+  function getOrCreateBlock(blockId) {
+    const container = document.getElementById('eval-stream');
+    let block = document.getElementById('eval-block-' + blockId);
+    if (!block) {
+      block = document.createElement('div');
+      block.className = 'eval-block eval-streaming';
+      block.id = 'eval-block-' + blockId;
+      block.innerHTML =
+        '<div class="eval-block-header" onclick="toggleBlock(\'' + blockId + '\')">' +
+        '<span class="eval-block-id">BLOC ' + blockId + '</span>' +
+        '<span class="eval-block-title">' + (BLOCK_TITLES[blockId] || '') + '</span>' +
+        '<span class="eval-block-chevron">▾</span>' +
+        '</div>' +
+        '<div class="eval-block-body" id="eval-block-body-' + blockId + '"></div>';
+      container.appendChild(block);
+      blockContents[blockId] = '';
+    }
+    return block;
+  }
+
+  function appendToBlock(blockId, text) {
+    blockContents[blockId] = (blockContents[blockId] || '') + text;
+    const body = document.getElementById('eval-block-body-' + blockId);
+    if (body) body.innerHTML = markdownToHtml(blockContents[blockId]);
+  }
+
+  function toggleBlock(blockId) {
+    const block = document.getElementById('eval-block-' + blockId);
+    if (block) block.classList.toggle('collapsed');
+  }
+
+  async function startEvaluation() {
+    const offerContent = document.getElementById('eval-offer').value.trim();
+    if (offerContent.length < 50) return setEvalStatus('Contenu trop court', true);
+
+    document.getElementById('eval-btn').disabled = true;
+    document.getElementById('eval-stream').innerHTML = '';
+    document.getElementById('eval-score-bar').style.display = 'none';
+    blockContents = {};
+    currentBlockId = null;
+    evalResult = null;
+    setEvalStatus('Évaluation en cours...');
+
+    try {
+      const response = await fetch('/api/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offerContent, language: selectedLang }),
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let payload;
+          try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (payload.type === 'chunk') {
+            const text = payload.text;
+            const newBlockId = detectBlockId(text);
+            if (newBlockId) {
+              if (currentBlockId) {
+                const prev = document.getElementById('eval-block-' + currentBlockId);
+                if (prev) prev.classList.remove('eval-streaming');
+              }
+              currentBlockId = newBlockId;
+              getOrCreateBlock(currentBlockId);
+            }
+            if (currentBlockId) appendToBlock(currentBlockId, text);
+          } else if (payload.type === 'done') {
+            if (currentBlockId) {
+              const last = document.getElementById('eval-block-' + currentBlockId);
+              if (last) last.classList.remove('eval-streaming');
+            }
+            evalResult = { ...payload, offerContent };
+            showScoreBar(payload.score, payload.company, payload.role);
+            setEvalStatus('');
+          } else if (payload.type === 'error') {
+            setEvalStatus(payload.message, true);
+          }
+        }
+      }
+    } catch (e) {
+      setEvalStatus(e.message, true);
+    } finally {
+      document.getElementById('eval-btn').disabled = false;
+    }
+  }
+
+  function showScoreBar(score, company, role) {
+    document.getElementById('eval-score-bar').style.display = '';
+    document.getElementById('eval-score-value').textContent = score ? score.toFixed(1) : '—';
+    const dots = document.getElementById('eval-score-dots');
+    dots.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+      const d = document.createElement('div');
+      d.className = 'score-dot' + (score && i <= Math.round(score) ? ' filled' : '');
+      dots.appendChild(d);
+    }
+    const genBtn = document.getElementById('eval-generate-btn');
+    genBtn.disabled = !score || score < 3.0;
+    genBtn.title = (!score || score < 3.0) ? 'Score insuffisant (< 3.0/5)' : '';
+  }
+
+  function goGenerate() {
+    if (!evalResult) return;
+    document.getElementById('gen-offer').value = evalResult.offerContent || '';
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    const genBtn = document.querySelectorAll('.tab-btn')[1];
+    if (genBtn) genBtn.classList.add('active');
+    document.getElementById('tab-generate').classList.add('active');
+    currentTab = 'generate';
+    detectGenTemplate();
+  }
+
+  async function saveToTracker() {
+    if (!evalResult) return;
+    const fullReport = Object.entries(blockContents).map(([k,v]) => '## Bloc ' + k + '\n\n' + v).join('\n\n---\n\n');
+    try {
+      await fetch('/api/tracker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company: evalResult.company,
+          role: evalResult.role,
+          score: evalResult.score,
+          status: 'Evaluated',
+          report_md: fullReport,
+          keywords: evalResult.keywords || [],
+        }),
+      });
+      setEvalStatus('Enregistré dans le tracker ✓');
+      setTimeout(() => setEvalStatus(''), 3000);
+    } catch (e) {
+      setEvalStatus(e.message, true);
+    }
+  }
+
+  // ===== GENERATION =====
+  let currentGenMeta = null;
 
   function toggleCoverLetter() {
-    coverLetterEnabled = !coverLetterEnabled;
-    document.getElementById('clToggle').classList.toggle('on', coverLetterEnabled);
-    updateClCard();
+    const checked = document.getElementById('gen-coverletter').checked;
+    document.getElementById('card-cl').style.display = checked ? '' : 'none';
   }
 
-  function updateClCard() {
-    const card = document.getElementById('clCard');
-    if (!coverLetterEnabled) {
-      card.className = 'result-card';
-      card.innerHTML = '<div class="rc-label">Lettre de motivation</div><div class="placeholder">Option désactivée</div>';
-    } else {
-      card.className = 'result-card';
-      card.innerHTML = '<div class="rc-label">Lettre de motivation</div><div class="placeholder">Sera générée avec le CV</div>';
-    }
-  }
-
-  function toggleTemplateOverride() {
-    const sel = document.getElementById('templateOverride');
-    sel.classList.toggle('visible');
-  }
-
-  function onTemplateOverride() {
-    const sel = document.getElementById('templateOverride');
-    if (sel.value) {
-      document.getElementById('templateDisplay').textContent = sel.value;
-    } else {
-      detectTemplate();
-    }
-  }
-
-  function onLocationManualEdit() {
-    locationLocked = true; // user took control of the field
-    clearTimeout(detectTimeout);
-    detectTimeout = setTimeout(() => detectTemplate(false), 600);
-  }
-
-  function onOfferChange(allowLocationUpdate) {
-    clearTimeout(detectTimeout);
-    detectTimeout = setTimeout(() => detectTemplate(allowLocationUpdate), 600);
-  }
-
-  async function detectTemplate(allowLocationUpdate = false) {
-    const offer = document.getElementById('offerContent').value.trim();
-    const location = document.getElementById('location').value.trim();
-    const override = document.getElementById('templateOverride').value;
-    if (override) return;
-    if (!offer) { document.getElementById('templateDisplay').textContent = '—'; return; }
+  async function detectGenTemplate() {
+    const offerContent = document.getElementById('gen-offer').value;
+    const location = document.getElementById('gen-location').value;
+    if (!offerContent) return;
     try {
-      const res = await fetch('/api/detect-template', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offerContent: offer, location })
-      });
-      const data = await res.json();
-      detectedTemplate = data.template;
-      document.getElementById('templateDisplay').textContent = data.template;
-      // Only update location if: new offer content arrived AND user hasn't manually set it
-      if (allowLocationUpdate && !locationLocked && data.suggestedLocation) {
-        document.getElementById('location').value = data.suggestedLocation;
-      }
-    } catch (e) { /* silent */ }
+      const r = await fetch('/api/detect-template', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ offerContent, location }) });
+      const d = await r.json();
+      document.getElementById('gen-template-name').textContent = d.template || 'Auto';
+    } catch {}
   }
 
-  async function fetchOffer() {
-    const url = document.getElementById('offerUrl').value.trim();
-    if (!url) return;
-    const btn = document.getElementById('fetchBtn');
-    btn.disabled = true;
-    btn.textContent = '...';
-    setStatus('Fetching offer...');
-    try {
-      const res = await fetch('/api/fetch-offer', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      document.getElementById('offerContent').value = data.content;
-      locationLocked = false; // new offer fetch resets the lock
-      detectTemplate(true);
-      setStatus('');
-    } catch (e) {
-      setStatus('Could not fetch URL — paste the content manually.', true);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Fetch →';
-    }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('gen-offer').addEventListener('input', () => {
+      clearTimeout(window._tplDebounce);
+      window._tplDebounce = setTimeout(detectGenTemplate, 600);
+    });
+  });
+
+  function setGenStatus(msg, isError) {
+    const el = document.getElementById('gen-status');
+    el.textContent = msg;
+    el.className = 'status-msg' + (isError ? ' error' : '');
+  }
+
+  function showDownloadCard(cardId, filenameId, downloadId, b64Data, filename) {
+    const card = document.getElementById(cardId);
+    card.classList.add('ready');
+    document.getElementById(filenameId).textContent = filename;
+    const blob = new Blob([Uint8Array.from(atob(b64Data), c => c.charCodeAt(0))], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const el = document.getElementById(downloadId);
+    el.innerHTML = '<a class="download-btn" href="' + url + '" download="' + filename + '">⬇ Télécharger</a>';
   }
 
   async function startGeneration() {
-    const offerContent = document.getElementById('offerContent').value.trim();
-    const location = document.getElementById('location').value.trim();
-    const templateOverride = document.getElementById('templateOverride').value;
-    if (!offerContent) { setStatus('Paste the job offer content first.', true); return; }
-    if (!location) { setStatus('Enter the job location.', true); return; }
+    const offerContent = document.getElementById('gen-offer').value.trim();
+    if (!offerContent) return setGenStatus('Pas de contenu', true);
 
-    const btn = document.getElementById('generateBtn');
+    const btn = document.getElementById('gen-btn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Génération en cours...';
-    resetCards();
-    setStatus('Claude adapte le CV...');
+    setGenStatus('');
+    document.getElementById('gen-tracker-row').style.display = 'none';
 
     try {
-      const res = await fetch('/api/generate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const r = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          offerContent, location,
-          workMode: selectedMode,
-          withCoverLetter: coverLetterEnabled,
-          templateOverride: templateOverride || null
-        })
+          offerContent,
+          keywords: evalResult ? evalResult.keywords : [],
+          location: document.getElementById('gen-location').value,
+          workMode: selectedWork,
+          withCoverLetter: document.getElementById('gen-coverletter').checked,
+          templateOverride: templateOverride || undefined,
+        }),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setStatus('');
-      showResult('cvCard', data.cv, 'CV adapté');
-      if (data.coverLetter) showResult('clCard', data.coverLetter, 'Lettre de motivation');
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+
+      currentGenMeta = d.meta;
+      showDownloadCard('card-cv', 'cv-filename', 'cv-download', d.cv.data, d.cv.filename);
+      if (d.coverLetter) {
+        showDownloadCard('card-cl', 'cl-filename', 'cl-download', d.coverLetter.data, d.coverLetter.filename);
+      }
+      document.getElementById('gen-tracker-row').style.display = '';
+      setGenStatus('');
     } catch (e) {
-      setStatus('Erreur : ' + e.message, true);
+      setGenStatus(e.message, true);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Générer →';
+      btn.textContent = '▶ Générer';
     }
   }
 
-  function showResult(cardId, file, label) {
-    const card = document.getElementById(cardId);
-    card.className = 'result-card ready';
-    const blob = b64toBlob(file.data, 'application/pdf');
-    const url = URL.createObjectURL(blob);
-    card.innerHTML = `
-      <div class="rc-label ready">${label}</div>
-      <div style="font-size:10px;color:#4ade80;margin-bottom:8px;">${file.filename}</div>
-      <a href="${url}" download="${file.filename}">Télécharger PDF</a>
-    `;
-  }
-
-  function resetCards() {
-    document.getElementById('cvCard').className = 'result-card';
-    document.getElementById('cvCard').innerHTML = '<div class="rc-label">CV adapté</div><div class="placeholder">Génération en cours...</div>';
-    if (coverLetterEnabled) {
-      document.getElementById('clCard').className = 'result-card';
-      document.getElementById('clCard').innerHTML = '<div class="rc-label">Lettre de motivation</div><div class="placeholder">Génération en cours...</div>';
+  async function saveGeneratedToTracker() {
+    if (!currentGenMeta) return;
+    try {
+      await fetch('/api/tracker', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ company: currentGenMeta.company, role: currentGenMeta.role, status: 'Applied', pdf_cv: true, pdf_cl: !!document.getElementById('gen-coverletter').checked }) });
+      document.getElementById('gen-tracker-row').style.display = 'none';
+      setGenStatus('Enregistré ✓');
+      setTimeout(() => setGenStatus(''), 2000);
+    } catch (e) {
+      setGenStatus(e.message, true);
     }
   }
 
-  function setStatus(msg, isError = false) {
-    const el = document.getElementById('status');
-    el.textContent = msg;
-    el.className = 'status' + (isError ? ' error' : '');
+  // ===== TRACKER =====
+  function formatDate(iso) {
+    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
   }
 
-  function b64toBlob(b64, type) {
-    const bytes = atob(b64);
-    const arr = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    return new Blob([arr], { type });
+  async function loadTracker() {
+    document.getElementById('tracker-status').textContent = 'Chargement...';
+    try {
+      const r = await fetch('/api/tracker');
+      trackerData = await r.json();
+      if (!Array.isArray(trackerData)) trackerData = [];
+      renderTracker();
+      document.getElementById('tracker-status').textContent = '';
+    } catch (e) {
+      document.getElementById('tracker-status').textContent = e.message;
+    }
+  }
+
+  function filterTracker(status) {
+    trackerFilter = status;
+    document.querySelectorAll('.tracker-filter-btn').forEach(b => b.classList.toggle('active', b.textContent === (status || 'Tous')));
+    renderTracker();
+  }
+
+  function renderTracker() {
+    const rows = trackerFilter ? trackerData.filter(r => r.status === trackerFilter) : trackerData;
+    document.getElementById('tracker-count').textContent = rows.length + ' candidature' + (rows.length !== 1 ? 's' : '');
+    const tbody = document.getElementById('tracker-tbody');
+    tbody.innerHTML = rows.map(row => {
+      const statuses = ['Evaluated','Applied','Interview','Offer','Rejected','Discarded','SKIP'];
+      const opts = statuses.map(s => '<option' + (s === row.status ? ' selected' : '') + '>' + s + '</option>').join('');
+      const report = row.report_md ? '<div class="label" style="margin-bottom:6px">Rapport</div><div class="report-md">' + (row.report_md.slice(0,1500)) + (row.report_md.length > 1500 ? '...' : '') + '</div>' : '';
+      return '<tr onclick="toggleTrackerRow(\'' + row.id + '\')">' +
+        '<td>' + formatDate(row.created_at) + '</td>' +
+        '<td><strong>' + (row.company || '') + '</strong></td>' +
+        '<td style="color:#aaa">' + (row.role || '') + '</td>' +
+        '<td><span class="score-chip">' + (row.score ? row.score + '/5' : '—') + '</span></td>' +
+        '<td><span class="status-badge status-' + row.status + '">' + row.status + '</span></td>' +
+        '<td style="color:#555;font-size:10px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (row.notes || '') + '</td>' +
+        '</tr>' +
+        '<tr><td colspan="6" style="padding:0">' +
+        '<div class="tracker-expanded" id="expand-' + row.id + '">' +
+        report +
+        '<div class="tracker-row-actions">' +
+        '<span class="label" style="margin-bottom:0">Statut :</span>' +
+        '<select class="tracker-status-select" onchange="updateTrackerStatus(\'' + row.id + '\', this.value)" onclick="event.stopPropagation()">' + opts + '</select>' +
+        '<button class="btn-small" onclick="deleteTrackerRow(\'' + row.id + '\');event.stopPropagation()">Supprimer</button>' +
+        '</div></div></td></tr>';
+    }).join('');
+  }
+
+  function toggleTrackerRow(id) {
+    const el = document.getElementById('expand-' + id);
+    if (el) el.classList.toggle('open');
+  }
+
+  async function updateTrackerStatus(id, status) {
+    try {
+      await fetch('/api/tracker/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+      const row = trackerData.find(r => r.id === id);
+      if (row) row.status = status;
+      renderTracker();
+    } catch (e) { console.error(e); }
+  }
+
+  async function deleteTrackerRow(id) {
+    if (!confirm('Supprimer cette candidature ?')) return;
+    try {
+      await fetch('/api/tracker/' + id, { method: 'DELETE' });
+      trackerData = trackerData.filter(r => r.id !== id);
+      renderTracker();
+    } catch (e) { console.error(e); }
+  }
+
+  // ===== PIPELINE =====
+  async function loadPipeline() {
+    document.getElementById('pipeline-status').textContent = 'Chargement...';
+    try {
+      const r = await fetch('/api/pipeline');
+      const items = await r.json();
+      renderPipeline(Array.isArray(items) ? items : []);
+      document.getElementById('pipeline-status').textContent = '';
+    } catch (e) {
+      document.getElementById('pipeline-status').textContent = e.message;
+    }
+  }
+
+  function renderPipeline(items) {
+    const list = document.getElementById('pipeline-list');
+    list.innerHTML = items.map(item =>
+      '<li class="pipeline-item ' + (item.processed ? 'processed' : '') + '">' +
+      '<a class="pipeline-url" onclick="loadPipelineItem(\'' + encodeURIComponent(item.url) + '\')">' + item.url + '</a>' +
+      '<span class="pipeline-title">' + (item.title || '') + '</span>' +
+      '<button class="btn-small" onclick="markPipelineProcessed(\'' + item.id + '\')">✓ Traité</button>' +
+      '<button class="btn-small" onclick="deletePipelineItem(\'' + item.id + '\')">✕</button>' +
+      '</li>'
+    ).join('');
+  }
+
+  async function addPipelineItem() {
+    const url = document.getElementById('pipeline-url-input').value.trim();
+    const title = document.getElementById('pipeline-title-input').value.trim();
+    if (!url) return;
+    try {
+      await fetch('/api/pipeline', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ url, title }) });
+      document.getElementById('pipeline-url-input').value = '';
+      document.getElementById('pipeline-title-input').value = '';
+      loadPipeline();
+    } catch (e) {
+      document.getElementById('pipeline-status').textContent = e.message;
+    }
+  }
+
+  function loadPipelineItem(encodedUrl) {
+    const url = decodeURIComponent(encodedUrl);
+    document.getElementById('eval-url').value = url;
+    showTab('evaluate', document.querySelectorAll('.tab-btn')[0]);
+    evalFetchOffer();
+  }
+
+  async function markPipelineProcessed(id) {
+    try {
+      await fetch('/api/pipeline/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ processed: true }) });
+      loadPipeline();
+    } catch (e) { console.error(e); }
+  }
+
+  async function deletePipelineItem(id) {
+    try {
+      await fetch('/api/pipeline/' + id, { method: 'DELETE' });
+      loadPipeline();
+    } catch (e) { console.error(e); }
   }
 </script>
 </body>
