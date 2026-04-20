@@ -119,6 +119,10 @@
     .pipeline-list { list-style: none; }
     .pipeline-item { background: #111; border: 1px solid #1e1e1e; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
     .pipeline-item.processed { opacity: 0.35; }
+    .batch-status { font-size: 10px; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+    .batch-status.evaluating { background: #1a2a3a; color: #60a5fa; }
+    .batch-status.done { background: #1a3a1a; color: #4ade80; }
+    .batch-status.error { background: #2a1a1a; color: #f87171; }
     .pipeline-url { font-size: 11px; color: #4ade80; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; text-decoration: none; }
     .pipeline-url:hover { text-decoration: underline; }
     .pipeline-title { font-size: 11px; color: #888; }
@@ -304,6 +308,22 @@
       <span class="section-title">Pipeline</span>
       <span class="section-subtitle">URLs à traiter</span>
     </div>
+
+    <!-- Scanner panel -->
+    <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:14px 16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:0" id="scanner-idle">
+        <button class="btn-secondary" onclick="startScan()" id="scan-btn">🔍 Scanner les portails</button>
+        <span style="font-size:11px;color:#444">Greenhouse · Ashby · Lever (local uniquement)</span>
+      </div>
+      <div id="scanner-log" style="margin-top:10px;font-size:10.5px;line-height:1.8;color:#666;max-height:150px;overflow-y:auto;display:none"></div>
+    </div>
+
+    <!-- Batch button -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <button class="btn-secondary" onclick="startBatch()" id="batch-btn">▶ Batch évaluer</button>
+      <span style="font-size:11px;color:#444" id="batch-count"></span>
+    </div>
+
     <div class="pipeline-add">
       <input type="text" id="pipeline-url-input" placeholder="https://jobs.ashbyhq.com/..." />
       <input type="text" id="pipeline-title-input" placeholder="Titre (optionnel)" style="max-width:200px" />
@@ -724,6 +744,121 @@
     } catch (e) { console.error(e); }
   }
 
+  // ===== SCANNER =====
+  async function startScan() {
+    const btn = document.getElementById('scan-btn');
+    const log = document.getElementById('scanner-log');
+    btn.disabled = true;
+    btn.textContent = '⏳ Scan en cours...';
+    log.style.display = '';
+    log.innerHTML = '';
+
+    try {
+      const response = await fetch('/api/scan');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let payload;
+          try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+          if (payload.type === 'progress') {
+            if (payload.new > 0) {
+              log.innerHTML += '<span style="color:#4ade80">✓ ' + payload.company + ' — ' + payload.new + ' nouvelle' + (payload.new > 1 ? 's' : '') + '</span><br>';
+            } else if (!payload.error) {
+              log.innerHTML += '<span>· ' + payload.company + ' — 0</span><br>';
+            } else {
+              log.innerHTML += '<span style="color:#f87171">✗ ' + payload.company + ' — ' + payload.error + '</span><br>';
+            }
+            log.scrollTop = log.scrollHeight;
+          } else if (payload.type === 'new') {
+            loadPipeline();
+          } else if (payload.type === 'done') {
+            log.innerHTML += '<br><strong style="color:#fff">Scan terminé — ' + payload.total_new + ' nouvelle' + (payload.total_new !== 1 ? 's' : '') + ' offre' + (payload.total_new !== 1 ? 's' : '') + ' ajoutée' + (payload.total_new !== 1 ? 's' : '') + '</strong>';
+          } else if (payload.type === 'error') {
+            log.innerHTML += '<span style="color:#f87171">⚠ ' + payload.message + '</span>';
+          }
+        }
+      }
+    } catch (e) {
+      document.getElementById('pipeline-status').textContent = e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Scanner les portails';
+    }
+  }
+
+  // ===== BATCH =====
+  let batchStatuses = {};
+
+  async function startBatch() {
+    const btn = document.getElementById('batch-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Évaluation en cours...';
+    batchStatuses = {};
+
+    try {
+      const response = await fetch('/api/batch', { method: 'POST' });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let payload;
+          try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+          if (payload.type === 'start') {
+            document.getElementById('pipeline-status').textContent = payload.total + ' offres à évaluer...';
+          } else if (payload.type === 'progress') {
+            batchStatuses[payload.id] = payload;
+            renderBatchStatus(payload);
+          } else if (payload.type === 'done') {
+            document.getElementById('pipeline-status').textContent = payload.evaluated + ' évaluations terminées' + (payload.errors > 0 ? ' · ' + payload.errors + ' erreur(s)' : '');
+            setTimeout(() => {
+              document.getElementById('pipeline-status').textContent = '';
+              loadPipeline();
+            }, 3000);
+          } else if (payload.type === 'error') {
+            document.getElementById('pipeline-status').textContent = payload.message;
+          }
+        }
+      }
+    } catch (e) {
+      document.getElementById('pipeline-status').textContent = e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '▶ Batch évaluer';
+    }
+  }
+
+  function renderBatchStatus(payload) {
+    const el = document.getElementById('batch-status-' + payload.id);
+    if (!el) return;
+    if (payload.status === 'evaluating') {
+      el.className = 'batch-status evaluating';
+      el.textContent = '⏳ En cours...';
+    } else if (payload.status === 'done') {
+      el.className = 'batch-status done';
+      el.textContent = '✅ ' + (payload.score ? payload.score + '/5' : '—') + (payload.company ? ' · ' + payload.company : '');
+    } else if (payload.status === 'error') {
+      el.className = 'batch-status error';
+      el.textContent = '❌ ' + payload.message.slice(0, 40);
+    }
+  }
+
   // ===== PIPELINE =====
   async function loadPipeline() {
     document.getElementById('pipeline-status').textContent = 'Chargement...';
@@ -738,15 +873,24 @@
   }
 
   function renderPipeline(items) {
+    const unprocessed = items.filter(i => !i.processed);
+    const batchBtn = document.getElementById('batch-btn');
+    const batchCount = document.getElementById('batch-count');
+    if (batchBtn) batchBtn.disabled = unprocessed.length === 0;
+    if (batchCount) batchCount.textContent = unprocessed.length + ' non traité' + (unprocessed.length !== 1 ? 's' : '');
+
     const list = document.getElementById('pipeline-list');
     list.innerHTML = items.map(item =>
       '<li class="pipeline-item ' + (item.processed ? 'processed' : '') + '">' +
       '<a class="pipeline-url" onclick="loadPipelineItem(\'' + encodeURIComponent(item.url) + '\')">' + item.url + '</a>' +
       '<span class="pipeline-title">' + (item.title || '') + '</span>' +
+      (batchStatuses[item.id] || !item.processed ? '<span class="batch-status" id="batch-status-' + item.id + '"></span>' : '') +
       '<button class="btn-small" onclick="markPipelineProcessed(\'' + item.id + '\')">✓ Traité</button>' +
       '<button class="btn-small" onclick="deletePipelineItem(\'' + item.id + '\')">✕</button>' +
       '</li>'
     ).join('');
+
+    Object.values(batchStatuses).forEach(renderBatchStatus);
   }
 
   async function addPipelineItem() {
