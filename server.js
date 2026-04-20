@@ -12,6 +12,9 @@ const { generate } = require('./src/generate');
 const { detectLanguage, detectRegion, selectTemplate, extractLocation } = require('./src/templates');
 const { streamEvaluation } = require('./src/evaluate');
 const tracker = require('./src/tracker');
+const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
+const { scanPortals } = require('./src/scanner');
+const { batchEvaluate } = require('./src/batch');
 
 const COOKIE_SECRET = process.env.SESSION_SECRET;
 const COOKIE_NAME = 'cv_auth';
@@ -150,8 +153,6 @@ app.get('/api/scan', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
-  const { scanPortals } = require('./src/scanner');
   const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
   let totalNew = 0;
   let totalScanned = 0;
@@ -182,8 +183,6 @@ app.post('/api/batch', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const { batchEvaluate } = require('./src/batch');
-
   try {
     const allItems = await tracker.listPipeline();
     const items = allItems.filter(i => !i.processed && i.url);
@@ -191,7 +190,7 @@ app.post('/api/batch', async (req, res) => {
 
     if (items.length === 0) {
       res.write(`data: ${JSON.stringify({ type: 'done', evaluated: 0, errors: 0 })}\n\n`);
-      return res.end();
+      return;
     }
 
     const results = await batchEvaluate(items, (event) => {
