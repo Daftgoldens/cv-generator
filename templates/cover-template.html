@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="UTF-8">
+<title>{{NAME}} — Cover Letter</title>
+<style>
+  @font-face {
+    font-family: 'Space Grotesk';
+    src: url('./fonts/space-grotesk-latin.woff2') format('woff2');
+    font-weight: 300 700; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: 'Space Grotesk';
+    src: url('./fonts/space-grotesk-latin-ext.woff2') format('woff2');
+    font-weight: 300 700; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: 'DM Sans';
+    src: url('./fonts/dm-sans-latin.woff2') format('woff2');
+    font-weight: 100 1000; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: 'DM Sans';
+    src: url('./fonts/dm-sans-latin-ext.woff2') format('woff2');
+    font-weight: 100 1000; font-style: normal; font-display: swap;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11.5px;
+    line-height: 1.65;
+    color: #1a1a2e;
+    background: #fff;
+  }
+  .page {
+    width: 100%;
+    max-width: {{PAGE_WIDTH}};
+    margin: 0 auto;
+    padding: 48px 56px;
+  }
+  .header h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+  }
+  .header-gradient {
+    height: 2px;
+    background: linear-gradient(90deg, hsl(187,74%,42%), hsl(270,70%,55%));
+    margin: 8px 0 10px;
+  }
+  .contact-row {
+    font-size: 10px;
+    color: #555;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 8px;
+    margin-bottom: 32px;
+  }
+  .contact-row a { color: hsl(187,74%,32%); text-decoration: none; }
+  .separator { color: #bbb; }
+  .date-line { font-size: 10.5px; color: #666; margin-bottom: 24px; }
+  hr { border: none; border-top: 1px solid #e8e8e8; margin: 16px 0 24px; }
+  p { margin-bottom: 14px; font-size: 11.5px; }
+  .signature { margin-top: 28px; font-size: 11px; color: #444; }
+  .signature strong {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+    color: #1a1a2e;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>{{NAME}}</h1>
+    <div class="header-gradient"></div>
+    <div class="contact-row">
+      <span>{{PHONE}}</span>
+      <span class="separator">|</span>
+      <span>{{EMAIL}}</span>
+      <span class="separator">|</span>
+      <a href="{{LINKEDIN_URL}}">{{LINKEDIN_DISPLAY}}</a>
+      <span class="separator">|</span>
+      <a href="{{PORTFOLIO_URL}}">{{PORTFOLIO_DISPLAY}}</a>
+    </div>
+  </div>
+  <div class="date-line">{{DATE_LINE}}</div>
+  <hr>
+  {{BODY}}
+  <div class="signature">
+    <strong>{{NAME}}</strong>
+    {{EMAIL}} · {{PHONE}} · {{PORTFOLIO_URL}}
+  </div>
+</div>
+</body>
+</html>
