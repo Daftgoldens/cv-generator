@@ -143,5 +143,68 @@ app.delete('/api/pipeline/:id', async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- Scanner (SSE) ---
+app.get('/api/scan', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
+  const { scanPortals } = require('./src/scanner');
+  const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  let totalNew = 0;
+  let totalScanned = 0;
+
+  try {
+    const newItems = await scanPortals(supabase, async (event) => {
+      if (event.type === 'new') {
+        await supabase.from('pipeline').insert({ url: event.url, title: event.title });
+      } else if (event.type === 'progress') {
+        totalScanned++;
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      }
+    });
+    totalNew = newItems.length;
+    res.write(`data: ${JSON.stringify({ type: 'done', total_new: totalNew, total_scanned: totalScanned })}\n\n`);
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+  } finally {
+    res.end();
+  }
+});
+
+// --- Batch evaluate (SSE) ---
+app.post('/api/batch', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const { batchEvaluate } = require('./src/batch');
+
+  try {
+    const allItems = await tracker.listPipeline();
+    const items = allItems.filter(i => !i.processed && i.url);
+    res.write(`data: ${JSON.stringify({ type: 'start', total: items.length })}\n\n`);
+
+    if (items.length === 0) {
+      res.write(`data: ${JSON.stringify({ type: 'done', evaluated: 0, errors: 0 })}\n\n`);
+      return res.end();
+    }
+
+    const results = await batchEvaluate(items, (event) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    });
+
+    const errors = results.filter(r => r.status === 'error').length;
+    res.write(`data: ${JSON.stringify({ type: 'done', evaluated: results.length - errors, errors })}\n\n`);
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+  } finally {
+    res.end();
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`CV Generator v2 running on :${PORT}`));
