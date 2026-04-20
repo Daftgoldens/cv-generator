@@ -157,15 +157,16 @@ app.get('/api/scan', async (req, res) => {
   let totalScanned = 0;
 
   try {
-    const newItems = await scanPortals(supabase, async (event) => {
+    await scanPortals(supabase, async (event) => {
       if (event.type === 'new') {
         await supabase.from('pipeline').insert({ url: event.url, title: event.title });
+        totalNew++;
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
       } else if (event.type === 'progress') {
         totalScanned++;
         res.write(`data: ${JSON.stringify(event)}\n\n`);
       }
     });
-    totalNew = newItems.length;
     res.write(`data: ${JSON.stringify({ type: 'done', total_new: totalNew, total_scanned: totalScanned })}\n\n`);
   } catch (err) {
     res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
