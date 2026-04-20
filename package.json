@@ -13,7 +13,9 @@
   "type": "commonjs",
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/tests/**/*.test.js"]
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
@@ -21,6 +23,7 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
+    "js-yaml": "^4.1.1",
     "marked": "^15.0.12",
     "playwright": "^1.59.1"
   },
