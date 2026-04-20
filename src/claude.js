@@ -1,55 +1,159 @@
 'use strict';
+const fs = require('fs');
+const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-async function adaptCv(templateMd, offerContent, workMode, location) {
+const PROMPTS_DIR = path.join(__dirname, 'prompts');
+const DATA_DIR = path.join(__dirname, '..', 'data');
+
+function loadPrompt(filename) {
+  return fs.readFileSync(path.join(PROMPTS_DIR, filename), 'utf8');
+}
+
+function loadCv() {
+  return fs.readFileSync(path.join(DATA_DIR, 'cv.md'), 'utf8');
+}
+
+// Streams evaluation blocks A-F. Calls onChunk(text) for each text delta.
+// Returns the full accumulated text when done.
+async function evaluate(offerContent, language, onChunk) {
+  const lang = language === 'fr' ? 'fr' : 'en';
+  const evaluateMode = lang === 'fr'
+    ? loadPrompt('evaluate-fr.md')
+    : loadPrompt('evaluate-en.md');
+  const sharedContext = lang === 'fr' ? loadPrompt('shared-fr.md') : '';
+  const profileContext = loadPrompt('profile.md');
+  const cvContent = loadCv();
+
+  const systemPrompt = [
+    sharedContext,
+    profileContext,
+    `## CV du candidat\n\n${cvContent}`,
+    evaluateMode,
+    `## Instruction finale\n\nAprès le Bloc F, génère OBLIGATOIREMENT une ligne JSON (sur une seule ligne) au format suivant — ne l'entoure pas de backticks ni de balises markdown :\n{"score": X.X, "company": "Nom exact de l'entreprise", "role": "Titre exact du poste", "keywords": ["kw1", "kw2", "kw3", ...15-20 mots-clés ATS]}`,
+  ].filter(Boolean).join('\n\n---\n\n');
+
+  const stream = client.messages.stream({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 8000,
+    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: `Évalue cette offre :\n\n${offerContent}` }],
+  });
+
+  let fullText = '';
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      const text = event.delta.text;
+      fullText += text;
+      onChunk(text);
+    }
+  }
+  return fullText;
+}
+
+// Generates an ATS-optimized CV as structured JSON with HTML sections.
+async function adaptCv(offerContent, keywords, workMode, location, lang) {
+  const pdfMode = loadPrompt('pdf-mode.md');
+  const cvContent = loadCv();
+
+  const systemPrompt = `## CV du candidat (source de vérité — ne jamais inventer)
+
+${cvContent}
+
+---
+
+## Règles de génération
+
+${pdfMode}
+
+---
+
+## Format de sortie OBLIGATOIRE
+
+Retourne UNIQUEMENT un objet JSON valide, sans backticks, sans texte avant ou après.
+Les sections experience, projects, education, certifications, skills sont du HTML pur.
+
+Structure HTML attendue pour experience :
+\`\`\`
+<div class="job">
+  <div class="job-header">
+    <div class="job-title-company">
+      <span class="job-title">Titre</span>
+      <span class="separator">·</span>
+      <span class="company">Entreprise</span>
+      <span class="separator">|</span>
+      <span class="location">Lieu</span>
+    </div>
+    <span class="date">Date début – Date fin</span>
+  </div>
+  <ul>
+    <li>Bullet point avec <strong>métrique</strong> intégrée</li>
+  </ul>
+</div>
+\`\`\`
+
+Structure HTML pour competencies (retourne un tableau de strings, pas du HTML) :
+["keyword1", "keyword2", ...]  (6-8 éléments max, issus du JD)
+
+Structure HTML pour education :
+\`\`\`
+<div class="edu-item">
+  <div class="edu-header">
+    <div><span class="edu-title">Diplôme</span> · <span class="edu-org">École</span></div>
+    <span class="edu-year">Années</span>
+  </div>
+  <div class="edu-desc">Description capstone si pertinente</div>
+</div>
+\`\`\`
+
+Structure HTML pour certifications :
+\`\`\`
+<div class="cert-item">
+  <span class="cert-title">Nom <span class="cert-org">Organisme</span></span>
+  <span class="cert-year">Année</span>
+</div>
+\`\`\`
+
+Structure HTML pour skills :
+\`\`\`
+<div class="skills-grid">
+  <span class="skill-item"><span class="skill-category">Catégorie :</span> item1 · item2</span>
+</div>
+\`\`\`
+
+JSON à retourner :
+{
+  "company": "...",
+  "role": "...",
+  "lang": "${lang}",
+  "summary": "texte paragraphe summary adapté",
+  "competencies": ["kw1", "kw2"],
+  "experience": "<html>",
+  "projects": "<html>",
+  "education": "<html>",
+  "certifications": "<html>",
+  "skills": "<html>"
+}`;
+
+  const userMsg = `Offre d'emploi :\n${offerContent}\n\nKeywords ATS à intégrer : ${(keywords || []).join(', ')}\nMode de travail : ${workMode}\nLieu : ${location}`;
+
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    system: [
-      {
-        type: 'text',
-        text: `You are an expert CV writer specializing in ATS optimization.
-
-You will receive a CV template in markdown and a job offer. Adapt the CV to maximize ATS score.
-
-RULES:
-- NEVER invent experience, change dates, or modify company names
-- DO rewrite bullet points to incorporate exact keywords from the offer naturally
-- DO rewrite the summary/profile section to directly target this specific role
-- Keep the exact same markdown structure and section order as the template
-- Remove any template instructions or comments (lines starting with # VERSION, FORMAT:, etc.)
-- Ensure 1-page worth of content — remove sections if needed to stay tight
-Return your response in this exact format and nothing else:
-<company>company name from offer</company>
-<role>job title from offer</role>
-<cv>
-full adapted CV in markdown here
-</cv>`,
-        cache_control: { type: 'ephemeral' }
-      }
-    ],
-    messages: [
-      {
-        role: 'user',
-        content: `TEMPLATE CV:\n${templateMd}\n\n---\n\nJOB OFFER:\n${offerContent}\n\n---\n\nWork mode: ${workMode}\nLocation: ${location}`
-      }
-    ]
+    max_tokens: 6000,
+    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: userMsg }],
   });
 
   const raw = response.content[0].text.trim();
-  const company = (raw.match(/<company>([\s\S]*?)<\/company>/) || [])[1]?.trim() || 'Company';
-  const role = (raw.match(/<role>([\s\S]*?)<\/role>/) || [])[1]?.trim() || 'Role';
-  const markdown = (raw.match(/<cv>([\s\S]*?)<\/cv>/) || [])[1]?.trim() || raw;
-  return { markdown, company, role };
+  const jsonStr = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+  return JSON.parse(jsonStr);
 }
 
+// Generates a cover letter as HTML paragraphs (<p> tags only, no header/signature).
 async function generateCoverLetter(offerContent, language, company, role, location) {
   const isEnglish = language === 'en';
-  const langInstruction = isEnglish
-    ? 'Write in English.'
-    : 'Écris en français.';
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
@@ -57,61 +161,41 @@ async function generateCoverLetter(offerContent, language, company, role, locati
     system: [
       {
         type: 'text',
-        text: `You are an expert cover letter writer for Baptiste Hoffmann.
-
-${langInstruction}
+        text: `You are writing a cover letter for Baptiste Hoffmann.
+${isEnglish ? 'Write in English.' : 'Écris en français.'}
 
 BAPTISTE'S BACKGROUND:
-- Founder & CEO of Kronvex (persistent memory API for B2B AI agents, FastAPI/PostgreSQL/pgvector/Supabase/Stripe)
-- Patent Data Analyst at Thales — shipped NLP/ML pipeline across 150M patents
-- Data Developer Intern at Safran USA Cincinnati — automated ERP/supply chain pipelines
-- Master of Engineering (Bac+5), CESI Paris, AI & Data Science
-- TOEIC 920/990
+- Founder & CEO of Kronvex — persistent memory API for B2B AI agents. p50 latency <55ms, 99.9% uptime, GDPR-native. Stack: FastAPI, PostgreSQL, pgvector, Supabase, Stripe, Cloudflare.
+- Patent Data Analyst at Thales (3-year apprenticeship) — NLP/ML pipeline across 150M patents, Power BI dashboards for legal/R&D/exec teams.
+- Data Developer Intern at Safran USA, Cincinnati — supply chain analytics, Python/SQL automation, Power BI KPI dashboards.
+- Master of Engineering (Bac+5), CESI Paris, AI & Data Science.
+- TOEIC 920/990.
 
-WRITING RULES:
-- Maximum 4 paragraphs, ~280 words total
-- First sentence: specific hook about the company or role (not generic)
-- Mention Kronvex and Thales (150M patents) — these are the strongest signals
-- Match keywords from the offer for ATS
+RULES:
+- Max 4 paragraphs, ~280 words total
+- First sentence: specific hook about the company or this role (not generic)
+- Paragraph 2-3: Kronvex + Thales (150M patents) are the strongest signals — use them
+- Match JD keywords for ATS
 - Confident tone, no groveling
-- End with "I'd like to talk." or "Je souhaite en discuter avec vous." depending on language
+- End with: "I'd like to talk." (EN) or "Je souhaite en discuter avec vous." (FR)
 
-OUTPUT FORMAT (markdown):
-Start with the header block, then a horizontal rule, then paragraphs, then signature.
+OUTPUT FORMAT: HTML paragraphs only — just <p> tags, no header, no signature.
+Example:
+<p>First paragraph...</p>
+<p>Second paragraph...</p>
+<p>Third paragraph...</p>
+<p>Closing paragraph. I'd like to talk.</p>
 
-Example structure:
-# Baptiste Hoffmann
-Paris, France · baptistehoffmann02@gmail.com · +33 7 82 98 80 75
-linkedin.com/in/baptistehoffmann · kronvex.io
-
-[Month Year] · [Company] — Hiring Team
-
----
-
-[paragraph 1]
-
-[paragraph 2]
-
-[paragraph 3]
-
-[paragraph 4 — closing]
-
-Baptiste Hoffmann
-baptistehoffmann02@gmail.com · +33 7 82 98 80 75 · kronvex.io
-
-Return ONLY the markdown, no extra text, no code fences.`,
-        cache_control: { type: 'ephemeral' }
-      }
+Return ONLY the HTML paragraphs, nothing else.`,
+        cache_control: { type: 'ephemeral' },
+      },
     ],
     messages: [
-      {
-        role: 'user',
-        content: `Company: ${company}\nRole: ${role}\nLocation: ${location}\n\nJob offer:\n${offerContent}`
-      }
-    ]
+      { role: 'user', content: `Company: ${company}\nRole: ${role}\nLocation: ${location}\n\nJob offer:\n${offerContent}` },
+    ],
   });
 
   return response.content[0].text.trim();
 }
 
-module.exports = { adaptCv, generateCoverLetter };
+module.exports = { evaluate, adaptCv, generateCoverLetter };
