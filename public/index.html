@@ -516,8 +516,8 @@
       dots.appendChild(d);
     }
     const genBtn = document.getElementById('eval-generate-btn');
-    genBtn.disabled = !score || score < 3.0;
-    genBtn.title = (!score || score < 3.0) ? 'Score insuffisant (< 3.0/5)' : '';
+    genBtn.disabled = false;
+    genBtn.title = '';
   }
 
   function goGenerate() {
