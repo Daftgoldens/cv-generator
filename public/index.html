@@ -336,6 +336,11 @@
 </div>
 
 <script>
+  // ===== HELPERS =====
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   // ===== STATE =====
   let currentTab = 'evaluate';
   let selectedLang = 'auto';
@@ -771,11 +776,11 @@
           try { payload = JSON.parse(line.slice(6)); } catch { continue; }
           if (payload.type === 'progress') {
             if (payload.new > 0) {
-              log.innerHTML += '<span style="color:#4ade80">✓ ' + payload.company + ' — ' + payload.new + ' nouvelle' + (payload.new > 1 ? 's' : '') + '</span><br>';
+              log.innerHTML += '<span style="color:#4ade80">✓ ' + escHtml(payload.company) + ' — ' + payload.new + ' nouvelle' + (payload.new > 1 ? 's' : '') + '</span><br>';
             } else if (!payload.error) {
-              log.innerHTML += '<span>· ' + payload.company + ' — 0</span><br>';
+              log.innerHTML += '<span>· ' + escHtml(payload.company) + ' — 0</span><br>';
             } else {
-              log.innerHTML += '<span style="color:#f87171">✗ ' + payload.company + ' — ' + payload.error + '</span><br>';
+              log.innerHTML += '<span style="color:#f87171">✗ ' + escHtml(payload.company) + ' — ' + escHtml(payload.error) + '</span><br>';
             }
             log.scrollTop = log.scrollHeight;
           } else if (payload.type === 'new') {
@@ -783,7 +788,7 @@
           } else if (payload.type === 'done') {
             log.innerHTML += '<br><strong style="color:#fff">Scan terminé — ' + payload.total_new + ' nouvelle' + (payload.total_new !== 1 ? 's' : '') + ' offre' + (payload.total_new !== 1 ? 's' : '') + ' ajoutée' + (payload.total_new !== 1 ? 's' : '') + '</strong>';
           } else if (payload.type === 'error') {
-            log.innerHTML += '<span style="color:#f87171">⚠ ' + payload.message + '</span>';
+            log.innerHTML += '<span style="color:#f87171">⚠ ' + escHtml(payload.message) + '</span>';
           }
         }
       }
@@ -797,9 +802,11 @@
 
   // ===== BATCH =====
   let batchStatuses = {};
+  let batchRunning = false;
 
   async function startBatch() {
     const btn = document.getElementById('batch-btn');
+    batchRunning = true;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Évaluation en cours...';
     batchStatuses = {};
@@ -827,6 +834,7 @@
             renderBatchStatus(payload);
           } else if (payload.type === 'done') {
             document.getElementById('pipeline-status').textContent = payload.evaluated + ' évaluations terminées' + (payload.errors > 0 ? ' · ' + payload.errors + ' erreur(s)' : '');
+            batchStatuses = {};
             setTimeout(() => {
               document.getElementById('pipeline-status').textContent = '';
               loadPipeline();
@@ -839,6 +847,7 @@
     } catch (e) {
       document.getElementById('pipeline-status').textContent = e.message;
     } finally {
+      batchRunning = false;
       btn.disabled = false;
       btn.textContent = '▶ Batch évaluer';
     }
@@ -876,17 +885,17 @@
     const unprocessed = items.filter(i => !i.processed);
     const batchBtn = document.getElementById('batch-btn');
     const batchCount = document.getElementById('batch-count');
-    if (batchBtn) batchBtn.disabled = unprocessed.length === 0;
+    if (batchBtn && !batchRunning) batchBtn.disabled = unprocessed.length === 0;
     if (batchCount) batchCount.textContent = unprocessed.length + ' non traité' + (unprocessed.length !== 1 ? 's' : '');
 
     const list = document.getElementById('pipeline-list');
     list.innerHTML = items.map(item =>
       '<li class="pipeline-item ' + (item.processed ? 'processed' : '') + '">' +
-      '<a class="pipeline-url" onclick="loadPipelineItem(\'' + encodeURIComponent(item.url) + '\')">' + item.url + '</a>' +
-      '<span class="pipeline-title">' + (item.title || '') + '</span>' +
-      (batchStatuses[item.id] || !item.processed ? '<span class="batch-status" id="batch-status-' + item.id + '"></span>' : '') +
-      '<button class="btn-small" onclick="markPipelineProcessed(\'' + item.id + '\')">✓ Traité</button>' +
-      '<button class="btn-small" onclick="deletePipelineItem(\'' + item.id + '\')">✕</button>' +
+      '<a class="pipeline-url" onclick="loadPipelineItem(\'' + encodeURIComponent(item.url) + '\')">' + escHtml(item.url) + '</a>' +
+      '<span class="pipeline-title">' + escHtml(item.title || '') + '</span>' +
+      (batchStatuses[item.id] || !item.processed ? '<span class="batch-status" id="batch-status-' + escHtml(item.id) + '"></span>' : '') +
+      '<button class="btn-small" onclick="markPipelineProcessed(\'' + escHtml(item.id) + '\')">✓ Traité</button>' +
+      '<button class="btn-small" onclick="deletePipelineItem(\'' + escHtml(item.id) + '\')">✕</button>' +
       '</li>'
     ).join('');
 
