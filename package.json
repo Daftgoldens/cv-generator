@@ -5,6 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "cron": "node src/cron/scheduler.js",
+    "bot": "node src/notifier/telegram-bot.js",
+    "seed": "node scripts/seed.js",
     "test": "jest --runInBand"
   },
   "keywords": [],
@@ -25,6 +28,7 @@
     "express": "^5.1.0",
     "js-yaml": "^4.1.1",
     "marked": "^15.0.12",
+    "node-cron": "^3.0.3",
     "playwright": "^1.59.1"
   },
   "devDependencies": {
