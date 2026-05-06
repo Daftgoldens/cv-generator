@@ -33,6 +33,11 @@ app.use(cookieParser(COOKIE_SECRET));
 function requireAuth(req, res, next) {
   if (req.signedCookies[COOKIE_NAME] === '1') return next();
   if (req.path === '/login' || req.path === '/health') return next();
+  // Bypass for cron endpoints when valid x-cron-secret is provided
+  if (req.path.startsWith('/api/cron/') && process.env.CRON_SECRET) {
+    const provided = req.headers['x-cron-secret'] || req.query.secret;
+    if (provided === process.env.CRON_SECRET) return next();
+  }
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
   res.redirect('/login');
 }
