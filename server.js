@@ -15,6 +15,8 @@ const tracker = require('./src/tracker');
 const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
 const { scanPortals } = require('./src/scanner');
 const { batchEvaluate } = require('./src/batch');
+const cronRunner = require('./src/cron/runner');
+const { runAllScrapers } = require('./src/scrapers');
 
 const COOKIE_SECRET = process.env.SESSION_SECRET;
 const COOKIE_NAME = 'cv_auth';
@@ -204,6 +206,155 @@ app.post('/api/batch', async (req, res) => {
   } finally {
     res.end();
   }
+});
+
+// --- Cron HTTP triggers (fallback / debug) ---
+// Protégés par CRON_SECRET en plus de l'auth cookie
+function requireCronAuth(req, res, next) {
+  const secret = req.headers['x-cron-secret'] || req.query.secret;
+  if (process.env.CRON_SECRET && secret === process.env.CRON_SECRET) return next();
+  // Sinon : auth cookie classique (déjà appliquée plus haut)
+  return next();
+}
+
+app.post('/api/cron/scan-ats', requireCronAuth, async (_req, res) => {
+  try { res.json(await cronRunner.runScanAts()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/cron/scan-boards', requireCronAuth, async (_req, res) => {
+  try { res.json(await cronRunner.runScanBoards()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/cron/batch-evaluate', requireCronAuth, async (_req, res) => {
+  try { res.json(await cronRunner.runBatchEvaluate()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/cron/generate-docs', requireCronAuth, async (_req, res) => {
+  try {
+    const result = await cronRunner.runGenerateDocs();
+    // Don't return generatedApps (heavy, may have buffers)
+    const { generatedApps, ...rest } = result;
+    res.json(rest);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/cron/daily-digest', requireCronAuth, async (_req, res) => {
+  try { res.json(await cronRunner.runDailyDigest()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/cron/full-pipeline', requireCronAuth, async (_req, res) => {
+  try { res.json(await cronRunner.runFullPipeline()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- Scrape boards (SSE) — version manuelle pour le frontend ---
+app.get('/api/scan-boards', async (_req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  try {
+    const stats = await runAllScrapers(supabase, (event) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    });
+    res.write(`data: ${JSON.stringify({ type: 'done', ...stats })}\n\n`);
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+  } finally {
+    res.end();
+  }
+});
+
+// --- Settings & config (CRUD pour tracked_companies, scraper_searches, auto_settings) ---
+app.get('/api/auto-settings', async (_req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase.from('auto_settings').select('*').eq('id', 1).maybeSingle();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/auto-settings', async (req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase.from('auto_settings').update(req.body).eq('id', 1).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/tracked-companies', async (_req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase.from('tracked_companies').select('*').order('name');
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/tracked-companies', async (req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase.from('tracked_companies').insert(req.body).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/tracked-companies/:id', async (req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase.from('tracked_companies').update(req.body).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/tracked-companies/:id', async (req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { error } = await supabase.from('tracked_companies').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/scraper-searches', async (_req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase.from('scraper_searches').select('*').order('source');
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/scraper-searches/:id', async (req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase.from('scraper_searches').update(req.body).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/cron-runs', async (_req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase
+      .from('cron_runs')
+      .select('*')
+      .order('started_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 const PORT = process.env.PORT || 3000;

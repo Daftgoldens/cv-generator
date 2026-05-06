@@ -91,11 +91,46 @@ async function getSeenUrls(supabase) {
   return seen;
 }
 
-async function scanPortals(supabase, onResult) {
-  if (!fs.existsSync(PORTALS_PATH)) {
-    throw new Error('portals.yml introuvable (scanner disponible en local uniquement)');
+async function loadConfig(supabase) {
+  // Try Supabase first
+  try {
+    const [{ data: companies, error: ce }, { data: filterRow, error: fe }] = await Promise.all([
+      supabase.from('tracked_companies').select('*').eq('enabled', true),
+      supabase.from('title_filters').select('*').eq('id', 1).maybeSingle(),
+    ]);
+    if (!ce && companies && companies.length > 0) {
+      return {
+        tracked_companies: companies.map(c => ({
+          name: c.name,
+          careers_url: c.careers_url,
+          api: c.api,
+          enabled: c.enabled,
+        })),
+        title_filter: filterRow ? { positive: filterRow.positive || [], negative: filterRow.negative || [] } : { positive: [], negative: [] },
+      };
+    }
+  } catch (_) { /* fall through to YAML */ }
+
+  // Fallback : YAML local (compat dev)
+  if (fs.existsSync(PORTALS_PATH)) {
+    return yaml.load(fs.readFileSync(PORTALS_PATH, 'utf8'));
   }
-  const config = yaml.load(fs.readFileSync(PORTALS_PATH, 'utf8'));
+  // Fallback : YAML embarqué dans le repo
+  const SEED = path.join(__dirname, '..', 'config', 'portals.seed.yml');
+  if (fs.existsSync(SEED)) {
+    const seed = yaml.load(fs.readFileSync(SEED, 'utf8'));
+    // seed est une liste + title_filter à la fin → normalize
+    const tf = Array.isArray(seed) ? seed.find(s => s && s.title_filter)?.title_filter : seed.title_filter;
+    const companies = Array.isArray(seed)
+      ? seed.filter(s => s && s.name)
+      : (seed.tracked_companies || []);
+    return { tracked_companies: companies, title_filter: tf || { positive: [], negative: [] } };
+  }
+  throw new Error('Aucune config trackée trouvée (ni Supabase, ni YAML)');
+}
+
+async function scanPortals(supabase, onResult) {
+  const config = await loadConfig(supabase);
   const seenUrls = await getSeenUrls(supabase);
   const titleFilter = buildTitleFilter(config.title_filter);
   const companies = (config.tracked_companies || []).filter(c => c.enabled !== false);
@@ -129,4 +164,4 @@ async function scanPortals(supabase, onResult) {
   return newItems;
 }
 
-module.exports = { detectApi, parseGreenhouse, parseAshby, parseLever, buildTitleFilter, scanPortals, getSeenUrls };
+module.exports = { detectApi, parseGreenhouse, parseAshby, parseLever, buildTitleFilter, scanPortals, getSeenUrls, loadConfig };
