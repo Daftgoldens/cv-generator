@@ -154,6 +154,7 @@
     <button class="tab-btn" onclick="showTab('generate', this)">Générer</button>
     <button class="tab-btn" onclick="showTab('tracker', this)">Tracker</button>
     <button class="tab-btn" onclick="showTab('pipeline', this)">Pipeline</button>
+    <button class="tab-btn" onclick="showTab('auto', this)">Auto</button>
   </div>
   <a class="logout" href="/logout">logout</a>
 </div>
@@ -331,6 +332,57 @@
     </div>
     <ul class="pipeline-list" id="pipeline-list"></ul>
     <div class="status-msg" id="pipeline-status"></div>
+  </div>
+
+  <!-- ===== AUTO ===== -->
+  <div class="tab-content" id="tab-auto">
+    <div class="section-header">
+      <span class="section-title">Auto-pipeline</span>
+      <span class="section-subtitle">Scrapers · Cron · Notifications</span>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="field" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
+      <button class="btn-secondary" onclick="autoRun('scan-ats')">▶ Scan ATS</button>
+      <button class="btn-secondary" onclick="autoRun('scan-boards')">▶ Scan Boards</button>
+      <button class="btn-secondary" onclick="autoRun('batch-evaluate')">▶ Évaluer (batch)</button>
+      <button class="btn-secondary" onclick="autoRun('generate-docs')">▶ Générer docs</button>
+      <button class="btn-secondary" onclick="autoRun('daily-digest')">▶ Envoyer digest</button>
+      <button class="btn-primary" onclick="autoRun('full-pipeline')">▶▶ Full pipeline</button>
+    </div>
+    <div class="status-msg" id="auto-status"></div>
+
+    <!-- Settings -->
+    <div style="margin-top:32px;">
+      <div class="label">Configuration</div>
+      <div id="auto-settings" style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;font-size:12px;"></div>
+      <button class="btn-small" style="margin-top:8px;" onclick="loadAutoSettings()">↻ Recharger</button>
+    </div>
+
+    <!-- Cron runs -->
+    <div style="margin-top:32px;">
+      <div class="label">Derniers runs cron</div>
+      <table class="tracker-table" id="cron-runs-table" style="font-size:11px;">
+        <thead><tr><th>Job</th><th>Statut</th><th>Trouvés</th><th>Nouveaux</th><th>Démarré</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Tracked companies -->
+    <div style="margin-top:32px;">
+      <div class="label">Entreprises trackées (ATS)</div>
+      <div id="tracked-companies-summary" style="font-size:11px;color:#888;margin-bottom:8px;"></div>
+      <div style="font-size:11px;color:#666;">Modifications dans Supabase Studio &gt; Table editor &gt; <code>tracked_companies</code></div>
+    </div>
+
+    <!-- Scraper searches -->
+    <div style="margin-top:32px;">
+      <div class="label">Recherches scrapers (LinkedIn / WTTJ / Indeed / HelloWork)</div>
+      <table class="tracker-table" id="scraper-searches-table" style="font-size:11px;">
+        <thead><tr><th>Source</th><th>Mots-clés</th><th>Lieu</th><th>Pays</th><th>Max</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
 </div>
@@ -936,6 +988,149 @@
       loadPipeline();
     } catch (e) { console.error(e); }
   }
+
+  // ===== AUTO TAB =====
+
+  async function autoRun(jobName) {
+    const status = document.getElementById('auto-status');
+    status.className = 'status-msg';
+    status.textContent = `▶ ${jobName} en cours...`;
+    try {
+      const r = await fetch(`/api/cron/${jobName}`, { method: 'POST' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      status.textContent = `✓ ${jobName} : ${JSON.stringify(j).slice(0, 200)}`;
+      // refresh runs after a short delay
+      setTimeout(loadCronRuns, 800);
+    } catch (e) {
+      status.className = 'status-msg error';
+      status.textContent = `✗ ${jobName} : ${e.message}`;
+    }
+  }
+
+  async function loadAutoSettings() {
+    try {
+      const r = await fetch('/api/auto-settings');
+      const s = await r.json();
+      const container = document.getElementById('auto-settings');
+      if (!s) { container.textContent = 'Aucun settings (table auto_settings vide)'; return; }
+      const fields = [
+        { k: 'scoring_threshold', label: 'Seuil score génération', type: 'number', step: 0.1 },
+        { k: 'daily_application_cap', label: 'Cap apps/jour', type: 'number' },
+        { k: 'cron_scan_ats_enabled', label: 'Cron scan ATS', type: 'boolean' },
+        { k: 'cron_scan_boards_enabled', label: 'Cron scan boards', type: 'boolean' },
+        { k: 'cron_batch_evaluate_enabled', label: 'Cron batch evaluate', type: 'boolean' },
+        { k: 'cron_generate_docs_enabled', label: 'Cron generate docs', type: 'boolean' },
+        { k: 'daily_digest_enabled', label: 'Daily digest', type: 'boolean' },
+        { k: 'telegram_enabled', label: 'Telegram', type: 'boolean' },
+        { k: 'email_enabled', label: 'Email', type: 'boolean' },
+      ];
+      container.innerHTML = fields.map(f => {
+        const v = s[f.k];
+        if (f.type === 'boolean') {
+          return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a1a;">
+            <input type="checkbox" ${v ? 'checked' : ''} onchange="updateAutoSetting('${f.k}', this.checked)" />
+            <span>${f.label}</span>
+          </label>`;
+        }
+        return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a1a;">
+          <span style="flex:1;">${f.label}</span>
+          <input type="number" value="${v}" ${f.step ? `step="${f.step}"` : ''} onchange="updateAutoSetting('${f.k}', parseFloat(this.value))"
+                 style="width:80px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;" />
+        </label>`;
+      }).join('');
+    } catch (e) {
+      document.getElementById('auto-settings').innerHTML = `<span style="color:#f87171">${e.message}</span>`;
+    }
+  }
+
+  async function updateAutoSetting(key, value) {
+    try {
+      await fetch('/api/auto-settings', {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ [key]: value }),
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  async function loadCronRuns() {
+    try {
+      const r = await fetch('/api/cron-runs');
+      const runs = await r.json();
+      const tbody = document.querySelector('#cron-runs-table tbody');
+      tbody.innerHTML = (runs || []).slice(0, 20).map(run => {
+        const date = new Date(run.started_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+        const statusColor = run.status === 'success' ? '#4ade80' : run.status === 'failed' ? '#f87171' : '#fbbf24';
+        return `<tr>
+          <td><code>${escHtml(run.job_name)}</code></td>
+          <td><span style="color:${statusColor}">${escHtml(run.status || '?')}</span></td>
+          <td>${run.items_processed || 0}</td>
+          <td><strong>${run.items_new || 0}</strong></td>
+          <td style="color:#666;">${date}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      document.querySelector('#cron-runs-table tbody').innerHTML = `<tr><td colspan="5" style="color:#f87171">${e.message}</td></tr>`;
+    }
+  }
+
+  async function loadTrackedCompanies() {
+    try {
+      const r = await fetch('/api/tracked-companies');
+      const list = await r.json();
+      const enabled = (list || []).filter(c => c.enabled).length;
+      document.getElementById('tracked-companies-summary').textContent =
+        `${list?.length || 0} entreprises trackées · ${enabled} activées`;
+    } catch (e) { /* skip */ }
+  }
+
+  async function loadScraperSearches() {
+    try {
+      const r = await fetch('/api/scraper-searches');
+      const list = await r.json();
+      const tbody = document.querySelector('#scraper-searches-table tbody');
+      tbody.innerHTML = (list || []).map(s => `
+        <tr>
+          <td><code>${escHtml(s.source)}</code></td>
+          <td>${escHtml((s.keywords || []).join(', '))}</td>
+          <td>${escHtml(s.location || '')}</td>
+          <td>${escHtml(s.country_code || '')}</td>
+          <td>${s.max_results || ''}</td>
+          <td>
+            <label style="display:flex;align-items:center;gap:4px;">
+              <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleSearch('${s.id}', this.checked)" />
+              <span style="font-size:10px;color:#666;">on</span>
+            </label>
+          </td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      document.querySelector('#scraper-searches-table tbody').innerHTML = `<tr><td colspan="6" style="color:#f87171">${e.message}</td></tr>`;
+    }
+  }
+
+  async function toggleSearch(id, enabled) {
+    try {
+      await fetch('/api/scraper-searches/' + id, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ enabled }),
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  // Hook into showTab to load Auto data on first visit
+  const _origShowTab = showTab;
+  showTab = function(tab, btn) {
+    _origShowTab(tab, btn);
+    if (tab === 'auto') {
+      loadAutoSettings();
+      loadCronRuns();
+      loadTrackedCompanies();
+      loadScraperSearches();
+    }
+  };
 </script>
 </body>
 </html>
