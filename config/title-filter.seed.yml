@@ -1,0 +1,35 @@
+positive:
+  - engineer
+  - developer
+  - ml
+  - ai
+  - data
+  - applied
+  - founding
+  - llm
+  - infrastructure
+  - platform
+  - backend
+  - forward deployed
+  - solutions
+  - technical
+negative:
+  - intern
+  - stage
+  - alternance
+  - apprentice
+  - manager
+  - director
+  - vp
+  - head of
+  - sales
+  - marketing
+  - recruiter
+  - account
+  - finance
+  - legal
+  - hr
+  - people
+  - security clearance
+  - principal
+  - staff +
