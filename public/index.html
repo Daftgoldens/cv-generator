@@ -352,6 +352,53 @@
     </div>
     <div class="status-msg" id="auto-status"></div>
 
+    <!-- Curation -->
+    <div style="margin-top:32px;background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;padding:20px;">
+      <div class="label" style="margin-bottom:12px;">🎯 Curation pipeline</div>
+
+      <!-- Purge -->
+      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #1a1a1a;">
+        <div style="font-size:12px;color:#aaa;margin-bottom:8px;">
+          <strong>Purger les jobs hors filtre titre</strong>
+          <span style="color:#666;font-size:11px;">(marque "processed" les offres avec titres non pertinents — Sales, Manager, Recruiter, etc.)</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-secondary" onclick="previewPurge()">👁️ Preview</button>
+          <button class="btn-secondary" onclick="executePurge()" style="border-color:#f87171;color:#f87171;">🗑️ Purger</button>
+          <span id="purge-status" style="font-size:11px;color:#888;"></span>
+        </div>
+      </div>
+
+      <!-- Évaluer par compagnies -->
+      <div>
+        <div style="font-size:12px;color:#aaa;margin-bottom:8px;">
+          <strong>Évaluer en priorité certaines entreprises</strong>
+          <span style="color:#666;font-size:11px;">(Cmd/Ctrl+clic pour multi-sélection)</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+          <select id="company-select" multiple size="8" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;padding:6px;font-size:11px;min-width:280px;border-radius:4px;"></select>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:200px;">
+            <label style="font-size:11px;color:#888;">Max items à évaluer</label>
+            <select id="max-items" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;padding:6px;font-size:11px;border-radius:4px;">
+              <option value="10">10 (~$0.50)</option>
+              <option value="25">25 (~$1.25)</option>
+              <option value="50" selected>50 (~$2.50)</option>
+              <option value="100">100 (~$5)</option>
+              <option value="200">200 (~$10)</option>
+            </select>
+            <label style="font-size:11px;color:#888;display:flex;align-items:center;gap:6px;">
+              <input type="checkbox" id="apply-filter" checked />
+              Appliquer le filtre titre
+            </label>
+            <button class="btn-secondary" onclick="previewEvaluate()" style="margin-top:6px;">👁️ Preview</button>
+            <button class="btn-primary" onclick="executeEvaluate()">🚀 Évaluer la sélection</button>
+            <button class="btn-small" onclick="loadCompanies()">↻ Recharger compagnies</button>
+          </div>
+        </div>
+        <div id="preview-result" style="margin-top:12px;font-size:11px;color:#888;"></div>
+      </div>
+    </div>
+
     <!-- Settings -->
     <div style="margin-top:32px;">
       <div class="label">Configuration</div>
@@ -1120,6 +1167,118 @@
     } catch (e) { console.error(e); }
   }
 
+  // ===== CURATION =====
+
+  async function loadCompanies() {
+    try {
+      const r = await fetch('/api/pipeline/companies');
+      const list = await r.json();
+      const sel = document.getElementById('company-select');
+      sel.innerHTML = (list || []).map(c => `
+        <option value="${escHtml(c.company)}">${escHtml(c.company)} — ${c.passing}/${c.total}</option>
+      `).join('');
+    } catch (e) {
+      document.getElementById('company-select').innerHTML = `<option>Erreur: ${e.message}</option>`;
+    }
+  }
+
+  function getSelectedCompanies() {
+    const sel = document.getElementById('company-select');
+    return Array.from(sel.selectedOptions).map(o => o.value);
+  }
+
+  async function previewPurge() {
+    const status = document.getElementById('purge-status');
+    status.textContent = '⏳ Calcul...';
+    try {
+      const r = await fetch('/api/pipeline/purge', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'erreur');
+      status.textContent = `Purgerait ${j.wouldPurge} jobs · garderait ${j.wouldKeep}`;
+    } catch (e) {
+      status.textContent = '❌ ' + e.message;
+    }
+  }
+
+  async function executePurge() {
+    if (!confirm('Marquer comme processed tous les jobs hors filtre titre ? (réversible via SQL)')) return;
+    const status = document.getElementById('purge-status');
+    status.textContent = '⏳ Purge en cours...';
+    try {
+      const r = await fetch('/api/pipeline/purge', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ dryRun: false }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'erreur');
+      status.textContent = `✓ ${j.purged} purgés · ${j.kept} gardés`;
+      // refresh companies dropdown
+      loadCompanies();
+    } catch (e) {
+      status.textContent = '❌ ' + e.message;
+    }
+  }
+
+  async function previewEvaluate() {
+    const companies = getSelectedCompanies();
+    const limit = parseInt(document.getElementById('max-items').value, 10);
+    const applyTitleFilter = document.getElementById('apply-filter').checked;
+    const out = document.getElementById('preview-result');
+    out.textContent = '⏳ Calcul...';
+    try {
+      const r = await fetch('/api/pipeline/preview', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ companies, limit, applyTitleFilter }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'erreur');
+      const lines = [
+        `<strong style="color:#4ade80;">${j.willEvaluate}</strong> jobs seront évalués (sur ${j.totalMatching} matching)`,
+        `Coût estimé : <strong>~$${j.estimatedCostUsd}</strong>`,
+        '',
+        '<strong>Aperçu :</strong>',
+        ...j.sample.slice(0, 15).map(s => `  • <span style="color:#aaa">${escHtml(s.title)}</span> <span style="color:#666">@ ${escHtml(s.company)}</span>`),
+      ];
+      if (j.sample.length > 15) lines.push(`  ... et ${j.sample.length - 15} autres`);
+      out.innerHTML = lines.join('<br>');
+    } catch (e) {
+      out.innerHTML = '<span style="color:#f87171;">❌ ' + e.message + '</span>';
+    }
+  }
+
+  async function executeEvaluate() {
+    const companies = getSelectedCompanies();
+    const maxItems = parseInt(document.getElementById('max-items').value, 10);
+    const cost = (maxItems * 0.05).toFixed(2);
+    const compLabel = companies.length > 0 ? companies.join(', ') : 'TOUTES les entreprises';
+    if (!confirm(`Lancer l'évaluation ?\n\nMax : ${maxItems} jobs\nEntreprises : ${compLabel}\nCoût estimé : ~$${cost}\n\nÇa va prendre 5-15 minutes.`)) return;
+
+    const status = document.getElementById('auto-status');
+    status.className = 'status-msg';
+    status.textContent = '⏳ Évaluation en cours (peut prendre 5-15 min, ne pas fermer l\'onglet)...';
+    try {
+      const r = await fetch('/api/cron/batch-evaluate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ maxItems, companies: companies.length > 0 ? companies : undefined }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'erreur');
+      status.textContent = `✓ Évaluation terminée : ${j.evaluated || 0}/${j.candidates || 0} évaluées (${j.errors || 0} erreurs). Va voir l'onglet Tracker.`;
+      loadCompanies();
+      loadCronRuns();
+    } catch (e) {
+      status.className = 'status-msg error';
+      status.textContent = '❌ ' + e.message;
+    }
+  }
+
   // Hook into showTab to load Auto data on first visit
   const _origShowTab = showTab;
   showTab = function(tab, btn) {
@@ -1129,6 +1288,7 @@
       loadCronRuns();
       loadTrackedCompanies();
       loadScraperSearches();
+      loadCompanies();
     }
   };
 </script>

@@ -121,7 +121,16 @@ async function runScanBoards() {
 // ============================================================
 // Job 3 : batch-evaluate
 // ============================================================
-async function runBatchEvaluate(maxItems = 50) {
+// Title filter (kept in sync with server.js, applied here too as defense-in-depth)
+const TITLE_POSITIVE_JS = /\b(engineer|developer|ml|ai|data scientist|data engineer|data analyst|founding|llm|infrastructure|platform|backend|forward deployed|solutions|technical|ingénieur|ingenieur)\b/i;
+const TITLE_NEGATIVE_JS = /\b(intern|stage|alternance|apprentice|manager|director|vp|head of|sales|marketing|recruiter|account|finance|legal|hr|people|security clearance|principal|counsel|partner|customer success|business development|risk|tax|accounting|compliance|operations associate|help desk|support engineer)\b|staff \+/i;
+
+function passesTitle(title) {
+  if (!title) return false;
+  return TITLE_POSITIVE_JS.test(title) && !TITLE_NEGATIVE_JS.test(title);
+}
+
+async function runBatchEvaluate(maxItems = 50, companies = null) {
   const supabase = getSupabase();
   const settings = await getSettings(supabase);
   if (!settings.cron_batch_evaluate_enabled) return { skipped: true };
@@ -129,10 +138,17 @@ async function runBatchEvaluate(maxItems = 50) {
   const runId = await logRunStart(supabase, 'batch-evaluate');
   try {
     const all = await tracker.listPipeline();
-    const items = all.filter(i => !i.processed && i.url).slice(0, maxItems);
+    let items = all.filter(i => !i.processed && i.url && passesTitle(i.title));
+    // Optional company filter (case-insensitive)
+    if (companies && companies.length > 0) {
+      const set = new Set(companies.map(c => c.toLowerCase()));
+      items = items.filter(i => i.company && set.has(i.company.toLowerCase()));
+    }
+    items = items.slice(0, maxItems);
+
     if (items.length === 0) {
       await logRunEnd(supabase, runId, { status: 'success', items_processed: 0, items_new: 0 });
-      return { evaluated: 0 };
+      return { evaluated: 0, candidates: 0 };
     }
     const results = await batchEvaluate(items, () => {});
     const ok = results.filter(r => r.status === 'done').length;
@@ -141,9 +157,9 @@ async function runBatchEvaluate(maxItems = 50) {
       status: 'success',
       items_processed: results.length,
       items_new: ok,
-      metadata: { errors },
+      metadata: { errors, companies: companies || 'all' },
     });
-    return { evaluated: ok, errors };
+    return { evaluated: ok, errors, candidates: items.length };
   } catch (err) {
     await logRunEnd(supabase, runId, { status: 'failed', error: err.message });
     throw err;

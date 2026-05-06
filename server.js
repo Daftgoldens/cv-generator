@@ -232,9 +232,12 @@ app.post('/api/cron/scan-boards', requireCronAuth, async (_req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/cron/batch-evaluate', requireCronAuth, async (_req, res) => {
-  try { res.json(await cronRunner.runBatchEvaluate()); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+app.post('/api/cron/batch-evaluate', requireCronAuth, async (req, res) => {
+  try {
+    // Optional body: { companies: ['Anthropic', ...], maxItems: 50 }
+    const opts = req.body || {};
+    res.json(await cronRunner.runBatchEvaluate(opts.maxItems, opts.companies));
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/cron/generate-docs', requireCronAuth, async (_req, res) => {
@@ -254,6 +257,110 @@ app.post('/api/cron/daily-digest', requireCronAuth, async (_req, res) => {
 app.post('/api/cron/full-pipeline', requireCronAuth, async (_req, res) => {
   try { res.json(await cronRunner.runFullPipeline()); }
   catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// Pipeline filtering & curation
+// ============================================================
+
+// Title filter regexes (kept in code so they're shared between routes)
+const TITLE_POSITIVE_REGEX = /\m(engineer|developer|ml|ai|data scientist|data engineer|data analyst|founding|llm|infrastructure|platform|backend|forward deployed|solutions|technical|ingénieur|ingenieur)\M/i;
+const TITLE_NEGATIVE_REGEX = /\m(intern|stage|alternance|apprentice|manager|director|vp|head of|sales|marketing|recruiter|account|finance|legal|hr|people|security clearance|principal|counsel|partner|customer success|business development|risk|tax|accounting|compliance|operations associate|help desk|support engineer)\M|staff \+/i;
+// Note: \m and \M are word boundaries in PostgreSQL regex, but JS uses \b
+const TITLE_POSITIVE_JS = /\b(engineer|developer|ml|ai|data scientist|data engineer|data analyst|founding|llm|infrastructure|platform|backend|forward deployed|solutions|technical|ingénieur|ingenieur)\b/i;
+const TITLE_NEGATIVE_JS = /\b(intern|stage|alternance|apprentice|manager|director|vp|head of|sales|marketing|recruiter|account|finance|legal|hr|people|security clearance|principal|counsel|partner|customer success|business development|risk|tax|accounting|compliance|operations associate|help desk|support engineer)\b|staff \+/i;
+
+function passesFilter(title) {
+  if (!title) return false;
+  return TITLE_POSITIVE_JS.test(title) && !TITLE_NEGATIVE_JS.test(title);
+}
+
+// Liste des entreprises avec compte d'offres non évaluées (pour le dropdown)
+app.get('/api/pipeline/companies', async (_req, res) => {
+  try {
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { data, error } = await supabase
+      .from('pipeline')
+      .select('company, title')
+      .eq('processed', false);
+    if (error) throw error;
+    // Group by company, count items that pass filter vs total
+    const map = new Map();
+    for (const row of data || []) {
+      const c = row.company || '(unknown)';
+      if (!map.has(c)) map.set(c, { company: c, total: 0, passing: 0 });
+      const m = map.get(c);
+      m.total++;
+      if (passesFilter(row.title)) m.passing++;
+    }
+    const result = Array.from(map.values()).sort((a, b) => b.passing - a.passing);
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Preview : combien d'offres seraient évaluées avec ces filtres
+app.post('/api/pipeline/preview', async (req, res) => {
+  try {
+    const { companies, applyTitleFilter, limit } = req.body || {};
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    let q = supabase.from('pipeline').select('id, title, company, url').eq('processed', false);
+    if (companies && companies.length > 0) {
+      q = q.in('company', companies);
+    }
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(500);
+    if (error) throw error;
+
+    let filtered = data || [];
+    if (applyTitleFilter) {
+      filtered = filtered.filter(r => passesFilter(r.title));
+    }
+    const sample = filtered.slice(0, Math.min(limit || 50, 50));
+    res.json({
+      totalMatching: filtered.length,
+      willEvaluate: Math.min(filtered.length, limit || 50),
+      sample: sample.map(r => ({ id: r.id, title: r.title, company: r.company })),
+      estimatedCostUsd: (Math.min(filtered.length, limit || 50) * 0.05).toFixed(2),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Purge : marque comme processed les jobs hors filtre titre (avec ou sans dry-run)
+app.post('/api/pipeline/purge', async (req, res) => {
+  try {
+    const { dryRun } = req.body || {};
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+
+    // Fetch unprocessed
+    const { data: jobs, error: fetchErr } = await supabase
+      .from('pipeline')
+      .select('id, title')
+      .eq('processed', false);
+    if (fetchErr) throw fetchErr;
+
+    const toPurge = (jobs || []).filter(j => !passesFilter(j.title)).map(j => j.id);
+
+    if (dryRun) {
+      return res.json({
+        dryRun: true,
+        wouldPurge: toPurge.length,
+        wouldKeep: (jobs || []).length - toPurge.length,
+      });
+    }
+
+    if (toPurge.length === 0) return res.json({ purged: 0 });
+
+    // Update by chunks of 100 (Supabase has IN limits)
+    let purged = 0;
+    for (let i = 0; i < toPurge.length; i += 100) {
+      const chunk = toPurge.slice(i, i + 100);
+      const { error } = await supabase
+        .from('pipeline')
+        .update({ processed: true, notes: '[auto-purged: title filter]' })
+        .in('id', chunk);
+      if (!error) purged += chunk.length;
+    }
+    res.json({ purged, kept: (jobs || []).length - toPurge.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // --- Scrape boards (SSE) — version manuelle pour le frontend ---
