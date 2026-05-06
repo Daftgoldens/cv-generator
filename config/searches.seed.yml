@@ -1,0 +1,114 @@
+# Seed initial pour scraper_searches — chargé via `npm run seed:searches`
+# Couvre LinkedIn, WTTJ, Indeed, HelloWork pour tes 8 pays cibles.
+# Volumes calibrés pour rester sous le radar (anti-ban LinkedIn).
+
+# ============ FRANCE ============
+- source: linkedin
+  keywords: [Data Engineer, AI Engineer, ML Engineer]
+  location: Paris, France
+  country_code: FR
+  remote_filter: [remote, hybrid, onsite]
+  posted_within_hours: 24
+  max_results: 25
+  enabled: true
+
+- source: wttj
+  keywords: [data engineer, machine learning, AI engineer, founding engineer]
+  location: paris
+  country_code: FR
+  max_results: 30
+  enabled: true
+
+- source: hellowork
+  keywords: [Data Engineer, AI Engineer]
+  location: Paris
+  country_code: FR
+  max_results: 20
+  enabled: true
+
+- source: indeed
+  keywords: [AI Engineer, Data Engineer]
+  location: Paris, France
+  country_code: FR
+  posted_within_hours: 48
+  max_results: 20
+  enabled: true
+
+# ============ USA ============
+- source: linkedin
+  keywords: [Applied AI Engineer, Forward Deployed Engineer, ML Engineer]
+  location: United States
+  country_code: US
+  remote_filter: [remote]    # remote-first vu le visa H-1B
+  posted_within_hours: 48
+  max_results: 25
+  enabled: true
+
+- source: indeed
+  keywords: [AI Engineer, Founding Engineer, ML Engineer]
+  location: Remote
+  country_code: US
+  max_results: 20
+  enabled: true
+
+# ============ CANADA ============
+- source: linkedin
+  keywords: [Data Engineer, AI Engineer, ML Engineer]
+  location: Canada
+  country_code: CA
+  max_results: 20
+  enabled: true
+
+- source: indeed
+  keywords: [Data Engineer, ML Engineer]
+  location: Toronto, ON
+  country_code: CA
+  max_results: 15
+  enabled: true
+
+# ============ AUSTRALIE ============
+- source: linkedin
+  keywords: [Data Engineer, AI Engineer, ML Engineer]
+  location: Australia
+  country_code: AU
+  max_results: 20
+  enabled: true
+
+- source: indeed
+  keywords: [AI Engineer, Data Engineer]
+  location: Sydney
+  country_code: AU
+  max_results: 15
+  enabled: true
+
+# ============ SINGAPORE ============
+- source: linkedin
+  keywords: [AI Engineer, ML Engineer, Data Engineer]
+  location: Singapore
+  country_code: SG
+  max_results: 20
+  enabled: true
+
+# ============ JAPAN ============
+- source: linkedin
+  keywords: [Machine Learning Engineer, Data Engineer, AI Engineer]
+  location: Tokyo, Japan
+  country_code: JP
+  max_results: 20
+  enabled: true
+
+# ============ KOREA ============
+- source: linkedin
+  keywords: [AI Engineer, ML Engineer]
+  location: South Korea
+  country_code: KR
+  max_results: 15
+  enabled: true
+
+# ============ CHINA ============
+- source: linkedin
+  keywords: [AI Engineer, Machine Learning]
+  location: China
+  country_code: CN
+  max_results: 15
+  enabled: true

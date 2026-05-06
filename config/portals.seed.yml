@@ -1,0 +1,190 @@
+# Seed initial pour tracked_companies — chargé une seule fois via `npm run seed:portals`
+# Après le seed, la gestion se fait via la DB Supabase / l'UI dashboard.
+#
+# ATS supportés : Greenhouse, Ashby, Lever
+# - Greenhouse : careers_url contient "job-boards.greenhouse.io" ou "boards.greenhouse.io"
+# - Ashby : careers_url contient "jobs.ashbyhq.com"
+# - Lever : careers_url contient "jobs.lever.co"
+
+# ============ AI LABS ============
+- name: Anthropic
+  careers_url: https://www.anthropic.com/careers
+  api: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
+  category: ai-lab
+  enabled: true
+
+- name: OpenAI
+  careers_url: https://openai.com/careers/search
+  api: https://boards-api.greenhouse.io/v1/boards/openai/jobs
+  category: ai-lab
+  enabled: true
+
+- name: Mistral AI
+  careers_url: https://jobs.lever.co/mistral
+  category: ai-lab
+  enabled: true
+
+- name: Hugging Face
+  careers_url: https://apply.workable.com/huggingface
+  category: ai-lab
+  enabled: false  # Workable non supporté en V1
+
+- name: Cohere
+  careers_url: https://jobs.lever.co/cohere
+  category: ai-lab
+  enabled: true
+
+- name: Scale AI
+  careers_url: https://jobs.ashbyhq.com/scaleai
+  category: ai-lab
+  enabled: true
+
+- name: Perplexity
+  careers_url: https://jobs.ashbyhq.com/perplexity
+  category: ai-lab
+  enabled: true
+
+- name: ElevenLabs
+  careers_url: https://jobs.ashbyhq.com/elevenlabs
+  category: ai-lab
+  enabled: true
+
+# ============ FRENCH AI / DATA STARTUPS ============
+- name: Dust
+  careers_url: https://jobs.ashbyhq.com/dust.tt
+  category: french-startup
+  enabled: true
+
+- name: Photoroom
+  careers_url: https://jobs.ashbyhq.com/photoroom
+  category: french-startup
+  enabled: true
+
+- name: Poolside
+  careers_url: https://jobs.ashbyhq.com/poolside
+  category: french-startup
+  enabled: true
+
+- name: H Company
+  careers_url: https://jobs.ashbyhq.com/h
+  category: french-startup
+  enabled: true
+
+- name: Pigment
+  careers_url: https://job-boards.greenhouse.io/pigment
+  category: french-startup
+  enabled: true
+
+- name: Qonto
+  careers_url: https://job-boards.greenhouse.io/qonto
+  category: french-startup
+  enabled: true
+
+- name: Doctolib
+  careers_url: https://job-boards.greenhouse.io/doctolib
+  category: french-startup
+  enabled: true
+
+- name: Alan
+  careers_url: https://jobs.lever.co/alan
+  category: french-startup
+  enabled: true
+
+- name: Swile
+  careers_url: https://jobs.lever.co/swile
+  category: french-startup
+  enabled: true
+
+- name: Aircall
+  careers_url: https://job-boards.greenhouse.io/aircall
+  category: french-startup
+  enabled: true
+
+# ============ DATA / DEVTOOLS US ============
+- name: Databricks
+  careers_url: https://job-boards.greenhouse.io/databricks
+  category: big-tech
+  enabled: true
+
+- name: Snowflake
+  careers_url: https://job-boards.greenhouse.io/snowflake
+  category: big-tech
+  enabled: true
+
+- name: Stripe
+  careers_url: https://job-boards.greenhouse.io/stripe
+  category: big-tech
+  enabled: true
+
+- name: Vercel
+  careers_url: https://job-boards.greenhouse.io/vercel
+  category: big-tech
+  enabled: true
+
+- name: Supabase
+  careers_url: https://jobs.ashbyhq.com/supabase
+  category: big-tech
+  enabled: true
+
+- name: Linear
+  careers_url: https://jobs.ashbyhq.com/linear
+  category: big-tech
+  enabled: true
+
+- name: Notion
+  careers_url: https://job-boards.greenhouse.io/notion
+  category: big-tech
+  enabled: true
+
+- name: Figma
+  careers_url: https://job-boards.greenhouse.io/figma
+  category: big-tech
+  enabled: true
+
+- name: Replit
+  careers_url: https://jobs.ashbyhq.com/replit
+  category: big-tech
+  enabled: true
+
+- name: LangChain
+  careers_url: https://jobs.ashbyhq.com/langchain
+  category: ai-lab
+  enabled: true
+
+# ============ CONFIG GLOBALE ============
+title_filter:
+  positive:
+    - engineer
+    - developer
+    - ml
+    - ai
+    - data
+    - applied
+    - founding
+    - llm
+    - infrastructure
+    - platform
+    - backend
+    - forward deployed
+    - solutions
+    - technical
+  negative:
+    - intern
+    - stage
+    - alternance
+    - apprentice
+    - manager
+    - director
+    - vp
+    - head of
+    - sales
+    - marketing
+    - recruiter
+    - account
+    - finance
+    - legal
+    - hr
+    - people
+    - security clearance
+    - principal
+    - staff +
