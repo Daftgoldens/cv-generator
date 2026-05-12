@@ -229,6 +229,15 @@
     </div>
 
     <div class="field">
+      <div class="label">Langue du CV</div>
+      <div class="mode-row">
+        <button class="mode-btn active" id="gen-lang-auto" onclick="setGenLang('auto')">Auto</button>
+        <button class="mode-btn" id="gen-lang-fr" onclick="setGenLang('fr')">FR</button>
+        <button class="mode-btn" id="gen-lang-en" onclick="setGenLang('en')">EN</button>
+      </div>
+    </div>
+
+    <div class="field">
       <div class="label">Mode de travail</div>
       <div class="mode-row">
         <button class="mode-btn active" id="work-remote" onclick="setWork('remote')">Remote</button>
@@ -238,8 +247,9 @@
     </div>
 
     <div class="template-info">
-      <span class="template-label" style="color:#555;font-size:11px">Template :</span>
-      <span class="template-detected" id="gen-template-name">Auto-détecté</span>
+      <span class="template-label" style="color:#555;font-size:11px">Auto-détecté :</span>
+      <span class="template-detected" id="gen-template-name">—</span>
+      <span class="template-lang-badge" id="gen-lang-badge" style="font-size:10px;padding:2px 6px;border-radius:3px;background:#eee;margin-left:6px;display:none"></span>
       <button class="template-change" onclick="toggleTemplateOverride()">Changer</button>
       <select class="template-select" id="gen-template-select" onchange="onTemplateSelect()">
         <option value="">Auto</option>
@@ -443,6 +453,7 @@
   // ===== STATE =====
   let currentTab = 'evaluate';
   let selectedLang = 'auto';
+  let selectedGenLang = 'auto';
   let selectedWork = 'remote';
   let evalResult = null;
   let trackerData = [];
@@ -464,6 +475,14 @@
   function setLang(lang) {
     selectedLang = lang;
     ['auto','fr','en'].forEach(l => document.getElementById('lang-'+l).classList.toggle('active', l === lang));
+  }
+
+  function setGenLang(lang) {
+    selectedGenLang = lang;
+    ['auto','fr','en'].forEach(l => {
+      const el = document.getElementById('gen-lang-'+l);
+      if (el) el.classList.toggle('active', l === lang);
+    });
   }
 
   function setWork(work) {
@@ -653,6 +672,10 @@
     if (genBtn) genBtn.classList.add('active');
     document.getElementById('tab-generate').classList.add('active');
     currentTab = 'generate';
+    // Propager la langue choisie en évaluation vers la génération
+    if (selectedLang !== 'auto') {
+      setGenLang(selectedLang);
+    }
     detectGenTemplate();
   }
 
@@ -695,6 +718,13 @@
       const r = await fetch('/api/detect-template', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ offerContent, location }) });
       const d = await r.json();
       document.getElementById('gen-template-name').textContent = d.template || 'Auto';
+      const badge = document.getElementById('gen-lang-badge');
+      if (badge) {
+        badge.textContent = (d.language || '?').toUpperCase() + ' · ' + (d.region || '?');
+        badge.style.background = d.language === 'fr' ? '#fff3cd' : '#d1f0d1';
+        badge.style.color = '#333';
+        badge.style.display = '';
+      }
     } catch {}
   }
 
@@ -721,6 +751,15 @@
     el.innerHTML = '<a class="download-btn" href="' + url + '" download="' + filename + '">⬇ Télécharger</a>';
   }
 
+  function getRegionFromTemplate(tpl) {
+    if (!tpl) return undefined;
+    if (tpl === 'CV_France.md') return 'france';
+    if (tpl === 'Resume_USA_Canada.md') return 'usa-canada';
+    if (tpl === 'Resume_Singapore_SouthKorea.md') return 'asia';
+    if (tpl === 'Resume_Japan.md') return 'japan';
+    return undefined;
+  }
+
   async function startGeneration() {
     const offerContent = document.getElementById('gen-offer').value.trim();
     if (!offerContent) return setGenStatus('Pas de contenu', true);
@@ -739,9 +778,12 @@
           offerContent,
           keywords: evalResult ? evalResult.keywords : [],
           location: document.getElementById('gen-location').value,
+          locationOverride: document.getElementById('gen-location').value,
           workMode: selectedWork,
           withCoverLetter: document.getElementById('gen-coverletter').checked,
           templateOverride: templateOverride || undefined,
+          languageOverride: selectedGenLang === 'auto' ? undefined : selectedGenLang,
+          regionOverride: getRegionFromTemplate(templateOverride),
         }),
       });
       const d = await r.json();
