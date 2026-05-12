@@ -233,7 +233,60 @@
 
     <div class="field">
       <div class="label">Lieu</div>
-      <input type="text" id="gen-location" value="Paris, France" />
+      <div class="row">
+        <select id="gen-location-select" onchange="onLocationSelect()" style="flex:1">
+          <optgroup label="🇫🇷 France">
+            <option value="Paris, France">Paris</option>
+            <option value="Lyon, France">Lyon</option>
+            <option value="Marseille, France">Marseille</option>
+            <option value="Toulouse, France">Toulouse</option>
+            <option value="Bordeaux, France">Bordeaux</option>
+            <option value="Nantes, France">Nantes</option>
+            <option value="Lille, France">Lille</option>
+            <option value="Strasbourg, France">Strasbourg</option>
+            <option value="Nice, France">Nice</option>
+            <option value="Remote (France)">Remote (France)</option>
+            <option value="__other_france__">Autre ville (France)…</option>
+          </optgroup>
+          <optgroup label="🇺🇸 USA">
+            <option value="New York, USA">New York, NY</option>
+            <option value="San Francisco, USA">San Francisco, CA</option>
+            <option value="Boston, USA">Boston, MA</option>
+            <option value="Seattle, USA">Seattle, WA</option>
+            <option value="Austin, USA">Austin, TX</option>
+            <option value="Los Angeles, USA">Los Angeles, CA</option>
+            <option value="Chicago, USA">Chicago, IL</option>
+            <option value="Denver, USA">Denver, CO</option>
+            <option value="Washington DC, USA">Washington, DC</option>
+            <option value="Dallas, USA">Dallas, TX</option>
+            <option value="Miami, USA">Miami, FL</option>
+            <option value="Orlando, USA">Orlando, FL</option>
+            <option value="Palm Beach, USA">Palm Beach, FL</option>
+            <option value="Remote (US)">Remote (US)</option>
+            <option value="__other_usa__">Autre ville (USA)…</option>
+          </optgroup>
+          <optgroup label="🇨🇦 Canada">
+            <option value="Toronto, Canada">Toronto</option>
+            <option value="Vancouver, Canada">Vancouver</option>
+            <option value="Montreal, Canada">Montréal</option>
+            <option value="__other_canada__">Autre ville (Canada)…</option>
+          </optgroup>
+          <optgroup label="🇯🇵 Japan">
+            <option value="Tokyo, Japan">Tokyo</option>
+            <option value="Osaka, Japan">Osaka</option>
+            <option value="Kyoto, Japan">Kyoto</option>
+            <option value="__other_japan__">Autre ville (Japan)…</option>
+          </optgroup>
+          <optgroup label="🇸🇬 🇰🇷 Singapore / Korea">
+            <option value="Singapore">Singapore</option>
+            <option value="Seoul, South Korea">Seoul</option>
+            <option value="__other_asia__">Autre ville (Asie)…</option>
+          </optgroup>
+          <option value="__other__">Autre pays…</option>
+        </select>
+        <input type="text" id="gen-location" value="Paris, France" style="display:none;flex:1" placeholder="Ex: Berlin, Germany" />
+        <button class="fetch-btn" id="gen-location-reset" onclick="resetLocationToSelect()" style="display:none">← Liste</button>
+      </div>
     </div>
 
     <div class="field">
@@ -758,6 +811,10 @@
       clearTimeout(window._tplDebounce);
       window._tplDebounce = setTimeout(detectGenTemplate, 600);
     });
+    document.getElementById('gen-location').addEventListener('input', () => {
+      clearTimeout(window._locDebounce);
+      window._locDebounce = setTimeout(detectGenTemplate, 500);
+    });
   });
 
   function setGenStatus(msg, isError) {
@@ -783,6 +840,45 @@
     if (tpl === 'Resume_Singapore_SouthKorea.md') return 'asia';
     if (tpl === 'Resume_Japan.md') return 'japan';
     return undefined;
+  }
+
+  // Maps "__other_xxx__" sentinels to {suffix, placeholder, region} for the free-text input
+  const OTHER_LOCATION_PRESETS = {
+    __other_france__:  { suffix: ', France',        placeholder: 'Ex: Grenoble, France',     hint: 'France' },
+    __other_usa__:     { suffix: ', USA',           placeholder: 'Ex: San Diego, USA',       hint: 'USA' },
+    __other_canada__:  { suffix: ', Canada',        placeholder: 'Ex: Calgary, Canada',      hint: 'Canada' },
+    __other_japan__:   { suffix: ', Japan',         placeholder: 'Ex: Yokohama, Japan',      hint: 'Japan' },
+    __other_asia__:    { suffix: '',                placeholder: 'Ex: Hong Kong',            hint: 'Asia' },
+    __other__:         { suffix: '',                placeholder: 'Ex: Berlin, Germany',      hint: 'Other' },
+  };
+
+  function onLocationSelect() {
+    const sel = document.getElementById('gen-location-select');
+    const input = document.getElementById('gen-location');
+    const resetBtn = document.getElementById('gen-location-reset');
+    const val = sel.value;
+
+    if (val.startsWith('__other')) {
+      const preset = OTHER_LOCATION_PRESETS[val] || OTHER_LOCATION_PRESETS.__other__;
+      // Switch to free-text input, pre-filled with the country suffix as a hint
+      sel.style.display = 'none';
+      input.style.display = '';
+      resetBtn.style.display = '';
+      input.placeholder = preset.placeholder;
+      input.value = preset.suffix ? preset.suffix : '';
+      // Move cursor to start so user can type the city
+      input.focus();
+      try { input.setSelectionRange(0, 0); } catch {}
+    } else {
+      input.value = val;
+    }
+    detectGenTemplate();
+  }
+
+  function resetLocationToSelect() {
+    document.getElementById('gen-location-select').style.display = '';
+    document.getElementById('gen-location').style.display = 'none';
+    document.getElementById('gen-location-reset').style.display = 'none';
   }
 
   async function startGeneration() {
