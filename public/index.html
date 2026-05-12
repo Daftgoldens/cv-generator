@@ -287,6 +287,12 @@
         <input type="text" id="gen-location" value="Paris, France" style="display:none;flex:1" placeholder="Ex: Berlin, Germany" />
         <button class="fetch-btn" id="gen-location-reset" onclick="resetLocationToSelect()" style="display:none">← Liste</button>
       </div>
+      <div id="gen-location-hint" style="display:none;font-size:11px;color:#888;margin-top:6px">
+        <span>Détecté dans l'offre : </span>
+        <a href="#" id="gen-location-hint-apply" onclick="applyDetectedLocation(event)" style="color:#0a84ff;text-decoration:none;font-weight:500"></a>
+        <span style="color:#bbb">·</span>
+        <a href="#" onclick="dismissLocationHint(event)" style="color:#888;text-decoration:none">ignorer</a>
+      </div>
     </div>
 
     <div class="field">
@@ -311,6 +317,7 @@
       <span class="template-label" style="color:#555;font-size:11px">Auto-détecté :</span>
       <span class="template-detected" id="gen-template-name">—</span>
       <span class="template-lang-badge" id="gen-lang-badge" style="font-size:10px;padding:2px 6px;border-radius:3px;background:#eee;margin-left:6px;display:none"></span>
+      <span class="template-visa-badge" id="gen-visa-badge" style="font-size:10px;padding:2px 6px;border-radius:3px;background:#eee;margin-left:6px;display:none" title=""></span>
       <button class="template-change" onclick="toggleTemplateOverride()">Changer</button>
       <select class="template-select" id="gen-template-select" onchange="onTemplateSelect()">
         <option value="">Auto</option>
@@ -788,6 +795,8 @@
     document.getElementById('card-cl').style.display = checked ? '' : 'none';
   }
 
+  let _detectedLocationCache = null;
+
   async function detectGenTemplate() {
     const offerContent = document.getElementById('gen-offer').value;
     const location = document.getElementById('gen-location').value;
@@ -798,12 +807,77 @@
       document.getElementById('gen-template-name').textContent = d.template || 'Auto';
       const badge = document.getElementById('gen-lang-badge');
       if (badge) {
-        badge.textContent = (d.language || '?').toUpperCase() + ' · ' + (d.region || '?');
+        // Show the actual template that will be used (more accurate than region).
+        // E.g. EN + france → Resume_USA_Canada (English template), not "EN · france" which is misleading.
+        const tplShort = (d.template || '?').replace(/\.md$/, '').replace(/^Resume_/, '').replace(/^CV_/, '');
+        badge.textContent = (d.language || '?').toUpperCase() + ' · ' + tplShort;
         badge.style.background = d.language === 'fr' ? '#fff3cd' : '#d1f0d1';
         badge.style.color = '#333';
         badge.style.display = '';
       }
+
+      // === Visa sponsorship badge ===
+      const visaBadge = document.getElementById('gen-visa-badge');
+      if (visaBadge) {
+        const visaConfig = {
+          sponsored:     { text: '✅ Visa OK',        bg: '#d1f0d1', color: '#0a6b0a', title: 'L\'offre mentionne explicitement le sponsorship visa (H1B, OPT, etc.)' },
+          not_sponsored: { text: '⚠️ Pas de visa',    bg: '#fff3cd', color: '#8a6d3b', title: 'L\'offre indique qu\'aucun sponsorship visa n\'est offert' },
+          locals_only:   { text: '🏠 Locaux only',    bg: '#f8d7da', color: '#a02020', title: 'Citoyens / résidents permanents / clearance requis — pas de sponsorship possible' },
+          unspecified:   { text: '❓ Visa non précisé', bg: '#eee',    color: '#666',    title: 'L\'offre ne précise pas la politique de sponsorship visa' },
+        };
+        const cfg = visaConfig[d.visaSponsorship] || visaConfig.unspecified;
+        visaBadge.textContent = cfg.text;
+        visaBadge.style.background = cfg.bg;
+        visaBadge.style.color = cfg.color;
+        visaBadge.title = cfg.title;
+        visaBadge.style.display = '';
+      }
+      // Show "Detected in offer" hint if server found a location different from current
+      _detectedLocationCache = d.detectedLocation || null;
+      const hintEl = document.getElementById('gen-location-hint');
+      const linkEl = document.getElementById('gen-location-hint-apply');
+      if (hintEl && linkEl) {
+        const current = (document.getElementById('gen-location').value || '').trim();
+        if (d.detectedLocation && d.detectedLocation.trim() && d.detectedLocation.trim() !== current) {
+          linkEl.textContent = d.detectedLocation;
+          hintEl.style.display = '';
+        } else {
+          hintEl.style.display = 'none';
+        }
+      }
     } catch {}
+  }
+
+  function applyDetectedLocation(ev) {
+    if (ev) ev.preventDefault();
+    if (!_detectedLocationCache) return;
+    const detected = _detectedLocationCache;
+    const sel = document.getElementById('gen-location-select');
+    const input = document.getElementById('gen-location');
+    // Try to find a matching <option> value in the select (case-insensitive on the location label)
+    let matched = false;
+    for (const opt of sel.options) {
+      if (opt.value && opt.value.toLowerCase() === detected.toLowerCase()) {
+        sel.value = opt.value;
+        input.value = opt.value;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      // No exact match in dropdown → use free-text input with the detected value
+      sel.style.display = 'none';
+      input.style.display = '';
+      document.getElementById('gen-location-reset').style.display = '';
+      input.value = detected;
+    }
+    document.getElementById('gen-location-hint').style.display = 'none';
+    detectGenTemplate();
+  }
+
+  function dismissLocationHint(ev) {
+    if (ev) ev.preventDefault();
+    document.getElementById('gen-location-hint').style.display = 'none';
   }
 
   document.addEventListener('DOMContentLoaded', () => {
