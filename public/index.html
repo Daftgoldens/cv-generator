@@ -219,6 +219,14 @@
     </div>
 
     <div class="field">
+      <div class="label">URL de l'offre (optionnel)</div>
+      <div class="row">
+        <input type="text" id="gen-url" placeholder="https://jobs.ashbyhq.com/... ou colle l'offre ci-dessous" />
+        <button class="fetch-btn" onclick="genFetchOffer()">Fetch →</button>
+      </div>
+    </div>
+
+    <div class="field">
       <div class="label">Offre (pré-remplie depuis l'évaluation)</div>
       <textarea id="gen-offer" rows="5" placeholder="Contenu de l'offre..."></textarea>
     </div>
@@ -516,6 +524,23 @@
       setEvalStatus('');
     } catch (e) {
       setEvalStatus(e.message, true);
+    }
+  }
+
+  async function genFetchOffer() {
+    const url = document.getElementById('gen-url').value.trim();
+    if (!url) return;
+    setGenStatus('Chargement de l\'offre...');
+    try {
+      const r = await fetch('/api/fetch-offer', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ url }) });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      document.getElementById('gen-offer').value = d.content;
+      setGenStatus('');
+      // Trigger auto-detection of language/region/template
+      detectGenTemplate();
+    } catch (e) {
+      setGenStatus(e.message, true);
     }
   }
 
