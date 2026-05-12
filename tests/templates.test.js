@@ -333,3 +333,46 @@ test('detectVisaSponsorship: negation prefix prevents false positive on "we prov
   // "we do not provide visa sponsorship" should not match "we provide visa sponsorship"
   assert.strictEqual(detectVisaSponsorship('Please note we do not provide visa sponsorship for this opening.'), 'not_sponsored');
 });
+
+// === NEW TESTS — currency-based Remote country inference ===
+
+test('extractLocation: Remote + USD ($/hr) → Remote (US)', () => {
+  const text = 'Machine Learning Engineer $50-70/hr Remote Freelance. Location: Remote.';
+  assert.strictEqual(extractLocation(text), 'Remote (US)');
+});
+
+test('extractLocation: Remote + EUR (€60k) → Remote (France)', () => {
+  const text = 'Backend Engineer · Remote · €60,000-€80,000 per year.';
+  assert.strictEqual(extractLocation(text), 'Remote (France)');
+});
+
+test('extractLocation: Remote + GBP (£50k) → Remote (UK)', () => {
+  const text = 'Senior Engineer (Remote). Salary £50,000-£70,000.';
+  assert.strictEqual(extractLocation(text), 'Remote (UK)');
+});
+
+test('extractLocation: Remote + USD code → Remote (US)', () => {
+  const text = 'Data Engineer Remote position. Compensation: 120,000 USD annually.';
+  assert.strictEqual(extractLocation(text), 'Remote (US)');
+});
+
+test('extractLocation: Remote + EUR code → Remote (France)', () => {
+  const text = 'ML Engineer · Fully remote · 70,000 EUR per year.';
+  assert.strictEqual(extractLocation(text), 'Remote (France)');
+});
+
+test('extractLocation: Remote + CAD → Remote (Canada)', () => {
+  const text = 'Software Engineer Remote. Compensation: 100,000 CAD.';
+  assert.strictEqual(extractLocation(text), 'Remote (Canada)');
+});
+
+test('extractLocation: Remote without currency stays Remote', () => {
+  const text = 'This is a fully remote position. We do not disclose salary publicly.';
+  assert.strictEqual(extractLocation(text), 'Remote');
+});
+
+test('extractLocation: explicit city beats currency inference', () => {
+  // Boston is more specific than Remote → Boston wins even if $ is mentioned
+  const text = 'Senior Engineer based in Boston, MA. $100k. Remote-friendly.';
+  assert.strictEqual(extractLocation(text), 'Boston, USA');
+});
