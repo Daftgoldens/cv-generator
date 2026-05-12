@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { detectLanguage, detectRegion, extractLocation, selectTemplate } = require('../src/templates.js');
+const { detectLanguage, detectRegion, extractLocation, selectTemplate, detectVisaSponsorship } = require('../src/templates.js');
 
 // === EXISTING TESTS (preserved) ===
 test('detectLanguage returns fr for French text', () => {
@@ -236,4 +236,100 @@ test('detectLanguage: WTTJ-style bilingual page → wins by content language', (
 
 test('detectLanguage: short ambiguous text with no markers → en (safe default)', () => {
   assert.strictEqual(detectLanguage('Data Engineer Position'), 'en');
+});
+
+// === NEW TESTS — EN offer based outside English-speaking countries ===
+
+test('extractLocation: detects Paris when offer is in English (e.g. Mistral AI)', () => {
+  const text = `Senior Machine Learning Engineer
+Mistral AI
+Location: Paris, France
+
+About the role
+We are looking for a Senior ML Engineer to join our Paris team. You will work on training and deploying large language models at scale.
+
+Requirements: Strong experience with PyTorch, distributed systems, and production ML systems.`;
+  assert.strictEqual(extractLocation(text), 'Paris, France');
+  // Language should still be English even though location is in France
+  assert.strictEqual(detectLanguage(text), 'en');
+});
+
+test('selectTemplate: en + france → Resume_USA_Canada (English template)', () => {
+  // This is the correct behavior: French location + English offer → English Resume
+  // (the only English template available is Resume_USA_Canada)
+  assert.strictEqual(selectTemplate('france', 'en'), 'Resume_USA_Canada.md');
+});
+
+test('selectTemplate: fr + usa-canada → Resume_USA_Canada (no French US template)', () => {
+  // Rare case: French offer for a US-based position. No fr+usa template, fall back to EN.
+  assert.strictEqual(selectTemplate('usa-canada', 'fr'), 'Resume_USA_Canada.md');
+});
+
+test('extractLocation: handles JSON-LD-formatted offer with "Location:" prefix', () => {
+  // Output of the new fetch-offer extractor starts with structured fields
+  const text = `Data Analyst (Remote)
+Schepmont Group, LLC
+Location: Boston, MA, US
+Work mode: Remote
+
+Overview: We are seeking a Data Analyst to support business operations...`;
+  assert.strictEqual(extractLocation(text), 'Boston, USA');
+});
+
+// === NEW TESTS — visa sponsorship detection ===
+
+test('detectVisaSponsorship: Schepmont-style explicit sponsorship → sponsored', () => {
+  const text = 'We actively encourage applications from candidates who require U.S. work authorization sponsorship, including individuals on H1B, OPT, and STEM OPT. Sponsorship support may be available for qualified candidates.';
+  assert.strictEqual(detectVisaSponsorship(text), 'sponsored');
+});
+
+test('detectVisaSponsorship: "willing to sponsor" → sponsored', () => {
+  assert.strictEqual(detectVisaSponsorship('We are willing to sponsor exceptional candidates.'), 'sponsored');
+});
+
+test('detectVisaSponsorship: "unable to provide visa sponsorship" → not_sponsored', () => {
+  assert.strictEqual(detectVisaSponsorship('We are unable to provide visa sponsorship at this time.'), 'not_sponsored');
+});
+
+test('detectVisaSponsorship: "we do not sponsor visas" → not_sponsored', () => {
+  assert.strictEqual(detectVisaSponsorship('We do not sponsor visas for this position.'), 'not_sponsored');
+});
+
+test('detectVisaSponsorship: "without need for visa sponsorship" → not_sponsored', () => {
+  assert.strictEqual(detectVisaSponsorship('Looking for candidates without the need for visa sponsorship.'), 'not_sponsored');
+});
+
+test('detectVisaSponsorship: "must be US citizen" → locals_only', () => {
+  assert.strictEqual(detectVisaSponsorship('Must be a US citizen with active security clearance.'), 'locals_only');
+});
+
+test('detectVisaSponsorship: "green card holders only" → locals_only', () => {
+  assert.strictEqual(detectVisaSponsorship('Must be a US citizen or permanent resident only.'), 'locals_only');
+});
+
+test('detectVisaSponsorship: TS/SCI clearance → locals_only', () => {
+  assert.strictEqual(detectVisaSponsorship('Active TS/SCI clearance required for this role.'), 'locals_only');
+});
+
+test('detectVisaSponsorship: French authorization required → locals_only', () => {
+  assert.strictEqual(detectVisaSponsorship('Autorisation de travail en France requise pour ce poste.'), 'locals_only');
+});
+
+test('detectVisaSponsorship: locals_only beats sponsored in conflict', () => {
+  // If an offer mentions both sponsorship AND citizenship requirement, the citizenship wins
+  assert.strictEqual(detectVisaSponsorship('We sponsor visas. Must be a US citizen for this role.'), 'locals_only');
+});
+
+test('detectVisaSponsorship: no mention → unspecified', () => {
+  assert.strictEqual(detectVisaSponsorship('We are looking for a Senior Engineer to join our team. You will work with cutting-edge technology.'), 'unspecified');
+});
+
+test('detectVisaSponsorship: handles empty input', () => {
+  assert.strictEqual(detectVisaSponsorship(''), 'unspecified');
+  assert.strictEqual(detectVisaSponsorship(null), 'unspecified');
+});
+
+test('detectVisaSponsorship: negation prefix prevents false positive on "we provide"', () => {
+  // "we do not provide visa sponsorship" should not match "we provide visa sponsorship"
+  assert.strictEqual(detectVisaSponsorship('Please note we do not provide visa sponsorship for this opening.'), 'not_sponsored');
 });
