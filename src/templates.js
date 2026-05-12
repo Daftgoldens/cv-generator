@@ -315,4 +315,97 @@ function loadTemplate(filename) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
-module.exports = { detectLanguage, detectRegion, selectTemplate, loadTemplate, extractLocation };
+// === Visa sponsorship detection ===
+//
+// Returns one of:
+//   'sponsored'    — Sponsorship explicitly offered (H1B, OPT, work visa supported)
+//   'not_sponsored'— Sponsorship explicitly NOT offered ("must be authorized to work in X")
+//   'locals_only' — Restricted to citizens/permanent residents/local nationals
+//   'unspecified'  — No clear signal (default)
+//
+// Strategy: pattern-match BOTH positive and negative cues, then pick the strongest.
+// Negative cues (not_sponsored / locals_only) win over positive in case of conflict,
+// because an employer mentioning "we sponsor" but also "must be a US citizen" is
+// effectively closed.
+
+const SPONSORSHIP_POSITIVE = [
+  // Explicit sponsorship offers
+  /\b(visa|h[-\s]?1[-\s]?b|h1[-\s]?b|opt|stem\s*opt|cpt|tn\s*visa|o[-\s]?1|e[-\s]?3)\s+(sponsorship|sponsoring|sponsored|support|will\s+be\s+(provided|offered|considered)|available)\b/i,
+  /\b(sponsorship|sponsoring)\s+(is|will\s+be)?\s*(available|provided|offered|supported)\b/i,
+  /\bwe\s+(offer|provide|support|sponsor)\s+(visa|work\s+visa|h[-\s]?1[-\s]?b|sponsorship|relocation)\b/i,
+  /\bwilling\s+to\s+sponsor\b/i,
+  /\bopen\s+to\s+sponsoring\b/i,
+  /\bvisa\s+sponsorship\s+(available|offered|provided|supported)\b/i,
+  /\b(h[-\s]?1[-\s]?b|opt|stem\s*opt)\s+(transfer|candidates)\s+(welcome|encouraged|accepted)\b/i,
+  /\b(work\s+authorization|sponsorship)\s+support\s+(may\s+be|is|will\s+be)\s+(available|provided)\b/i,
+  /\bcandidates?\s+who\s+require\s+(u\.?s\.?\s+)?work\s+authorization\s+sponsorship\b/i,
+  /\bencourage\s+applications?\s+from\s+candidates?\s+who\s+require\b/i,
+];
+
+// Pre-filter patterns that disqualify a positive match — used to detect "negations" that
+// might appear right before a positive cue (e.g. "we do NOT provide visa sponsorship"
+// would match the "we provide visa sponsorship" pattern without this check).
+const NEGATION_PREFIX = /\b(no|not?|don'?t|do\s+not|cannot|can'?t|unable|won'?t|will\s+not|are\s+not)\b/i;
+
+function hasNegationNear(text, matchIndex) {
+  // Look at the 60 chars before the match for a negation word
+  const window = text.slice(Math.max(0, matchIndex - 60), matchIndex);
+  return NEGATION_PREFIX.test(window);
+}
+
+const SPONSORSHIP_NEGATIVE = [
+  /\b(no|not?)\s+(visa\s+)?sponsorship\b/i,
+  /\b(unable|do\s+not|cannot|can'?t|will\s+not|are\s+not\s+able)\s+(to\s+)?(provide|offer|support|sponsor)\s+(visa\s+)?(sponsorship)?\b/i,
+  /\bsponsorship\s+(is\s+)?not\s+(available|offered|provided)\b/i,
+  /\bnot\s+able\s+to\s+sponsor\b/i,
+  /\bvisa\s+sponsorship\s+(is\s+)?(unavailable|not\s+available)\b/i,
+  /\bwe\s+(do\s+not|don'?t|are\s+not\s+able\s+to|cannot|are\s+unable\s+to)\s+sponsor\b/i,
+  /\bwithout\s+(the\s+)?need\s+for\s+(visa\s+)?sponsorship\b/i,
+];
+
+const LOCALS_ONLY = [
+  // US-specific
+  /\b(must|need|required)\s+(to\s+)?be\s+(a\s+)?(u\.?s\.?\s+|us\s+|american\s+)?(citizen|national)\b/i,
+  /\b(u\.?s\.?|us|american)\s+citizens?\s+only\b/i,
+  /\b(must|need)\s+(have|hold|possess)\s+(u\.?s\.?\s+|us\s+)?citizenship\b/i,
+  /\b(green\s*card|permanent\s+resident)\s+(holders?\s+)?(only|required)\b/i,
+  /\bmust\s+be\s+(legally\s+)?authorized\s+to\s+work\s+in\s+the\s+(u\.?s\.?|us|united\s+states)(\s+without\s+(sponsorship|visa))?/i,
+  /\bauthorization\s+to\s+work\s+in\s+the\s+(u\.?s\.?|us|united\s+states)\s+(without\s+(restriction|sponsorship))\b/i,
+  /\bsecurity\s+clearance\s+(required|needed)\b/i,
+  /\b(secret|top\s+secret|ts\/sci)\s+clearance\b/i,
+  // EU/UK
+  /\bmust\s+have\s+(the\s+)?(right|legal\s+right)\s+to\s+work\s+in\s+(the\s+)?(uk|united\s+kingdom|eu|europe|france)\b/i,
+  /\b(uk|eu)\s+(work\s+)?(authorization|authorisation|permit)\s+required\b/i,
+  /\bautorisation\s+de\s+travail\s+(en\s+france|européenne)\s+(requise|obligatoire)\b/i,
+];
+
+function detectVisaSponsorship(offerText) {
+  if (!offerText) return 'unspecified';
+
+  let hasPositive = false;
+  let hasNegative = false;
+  let hasLocalsOnly = false;
+
+  for (const re of SPONSORSHIP_POSITIVE) {
+    const m = re.exec(offerText);
+    if (m && !hasNegationNear(offerText, m.index)) {
+      hasPositive = true;
+      break;
+    }
+  }
+  for (const re of SPONSORSHIP_NEGATIVE) {
+    if (re.test(offerText)) { hasNegative = true; break; }
+  }
+  for (const re of LOCALS_ONLY) {
+    if (re.test(offerText)) { hasLocalsOnly = true; break; }
+  }
+
+  // Locals-only is the strongest signal (citizen/clearance > sponsorship discussion)
+  if (hasLocalsOnly) return 'locals_only';
+  // Explicit "no sponsorship" beats implicit "we encourage" mentions
+  if (hasNegative) return 'not_sponsored';
+  if (hasPositive) return 'sponsored';
+  return 'unspecified';
+}
+
+module.exports = { detectLanguage, detectRegion, selectTemplate, loadTemplate, extractLocation, detectVisaSponsorship };
