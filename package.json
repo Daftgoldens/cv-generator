@@ -8,7 +8,8 @@
     "cron": "node src/cron/scheduler.js",
     "bot": "node src/notifier/telegram-bot.js",
     "seed": "node scripts/seed.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "postinstall": "playwright install --with-deps chromium"
   },
   "keywords": [],
   "author": "",
