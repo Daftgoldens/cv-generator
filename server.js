@@ -9,7 +9,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const { fetchOffer } = require('./src/fetch-offer');
 const { generate } = require('./src/generate');
-const { detectLanguage, detectRegion, selectTemplate, extractLocation } = require('./src/templates');
+const { detectLanguage, detectRegion, selectTemplate, extractLocation, detectVisaSponsorship } = require('./src/templates');
 const { streamEvaluation } = require('./src/evaluate');
 const tracker = require('./src/tracker');
 const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
@@ -88,10 +88,12 @@ app.post('/api/detect-template', (req, res) => {
   try {
     const { offerContent, location } = req.body;
     const lang = detectLanguage(offerContent || '');
-    const effectiveLocation = (typeof extractLocation === 'function' ? extractLocation(offerContent || '') : null) || location || '';
+    const detectedLocation = (typeof extractLocation === 'function' ? extractLocation(offerContent || '') : null);
+    const effectiveLocation = detectedLocation || location || '';
     const region = detectRegion(effectiveLocation);
     const template = selectTemplate(region, lang);
-    res.json({ template, language: lang, region });
+    const visaSponsorship = detectVisaSponsorship(offerContent || '');
+    res.json({ template, language: lang, region, detectedLocation, effectiveLocation, visaSponsorship });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
