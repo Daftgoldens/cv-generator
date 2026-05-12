@@ -3,10 +3,37 @@ const { detectLanguage, detectRegion, selectTemplate, extractLocation } = requir
 const { adaptCv, generateCoverLetter } = require('./claude');
 const { generateCvPdf, generateCoverLetterPdf } = require('./pdf');
 
-async function generate({ offerContent, keywords, location, workMode, withCoverLetter, templateOverride }) {
-  const language = detectLanguage(offerContent);
-  const effectiveLocation = extractLocation(offerContent) || location || 'Paris, France';
-  const region = detectRegion(effectiveLocation);
+async function generate({
+  offerContent,
+  keywords,
+  location,
+  workMode,
+  withCoverLetter,
+  templateOverride,
+  languageOverride,   // 'fr' | 'en' | undefined
+  regionOverride,     // 'france' | 'usa-canada' | 'asia' | 'japan' | 'other' | undefined
+  locationOverride,   // si l'user a explicitement choisi un lieu → on l'utilise tel quel
+}) {
+  // === LANGUAGE ===
+  // Priorité : override explicite > détection auto
+  const language = (languageOverride === 'fr' || languageOverride === 'en')
+    ? languageOverride
+    : detectLanguage(offerContent);
+
+  // === LOCATION ===
+  // Priorité : override explicite (champ user) > détection dans l'offre > location passée > défaut
+  // L'override gagne TOUJOURS — si l'user a tapé un lieu, on le respecte.
+  let effectiveLocation;
+  if (locationOverride && locationOverride.trim()) {
+    effectiveLocation = locationOverride.trim();
+  } else {
+    effectiveLocation = extractLocation(offerContent) || location || 'Paris, France';
+  }
+
+  // === REGION ===
+  const region = (regionOverride && regionOverride !== 'auto')
+    ? regionOverride
+    : detectRegion(effectiveLocation);
 
   // adaptCv returns JSON sections + company/role
   const sections = await adaptCv(offerContent, keywords || [], workMode, effectiveLocation, language);
@@ -22,7 +49,7 @@ async function generate({ offerContent, keywords, location, workMode, withCoverL
 
   const result = {
     cv: { data: cvBuffer.toString('base64'), filename: cvFilename },
-    meta: { company, role, language, region },
+    meta: { company, role, language, region, location: effectiveLocation },
   };
 
   if (withCoverLetter) {

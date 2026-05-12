@@ -58,7 +58,33 @@ async function adaptCv(offerContent, keywords, workMode, location, lang) {
   const pdfMode = loadPrompt('pdf-mode.md');
   const cvContent = loadCv();
 
-  const systemPrompt = `## CV du candidat (source de vérité — ne jamais inventer)
+  // === Strict language instruction (FIRST line of system prompt) ===
+  // This is critical: without it, the model can drift to French because
+  // the rest of the prompt structure is in French.
+  const langInstruction = lang === 'en'
+    ? `# OUTPUT LANGUAGE: ENGLISH
+
+**ALL output text MUST be in English.** This includes:
+- The "summary" paragraph
+- All bullet points in experience and projects
+- All descriptions, role titles, and skill categories
+- The text inside "skill-category" spans (e.g. "Analytics & BI:" not "Analytique & BI :")
+- All competencies
+
+The candidate (Baptiste) is bilingual. Even though the candidate CV source contains some French, you MUST translate everything to natural, professional English. Use US English spelling (organize, analyze, color).
+
+---
+
+`
+    : `# LANGUE DE SORTIE : FRANÇAIS
+
+**Toute la sortie doit être en français.** Cela inclut les bullets, descriptions, titres de rôles, catégories de skills, summary, et compétences.
+
+---
+
+`;
+
+  const systemPrompt = `${langInstruction}## CV du candidat (source de vérité — ne jamais inventer)
 
 ${cvContent}
 
@@ -80,46 +106,46 @@ Structure HTML attendue pour experience :
 <div class="job">
   <div class="job-header">
     <div class="job-title-company">
-      <span class="job-title">Titre</span>
+      <span class="job-title">Title</span>
       <span class="separator">·</span>
-      <span class="company">Entreprise</span>
+      <span class="company">Company</span>
       <span class="separator">|</span>
-      <span class="location">Lieu</span>
+      <span class="location">Location</span>
     </div>
-    <span class="date">Date début – Date fin</span>
+    <span class="date">Start – End</span>
   </div>
   <ul>
-    <li>Bullet point avec <strong>métrique</strong> intégrée</li>
+    <li>Bullet with <strong>metric</strong> integrated</li>
   </ul>
 </div>
 \`\`\`
 
-Structure HTML pour competencies (retourne un tableau de strings, pas du HTML) :
+Structure pour competencies (tableau de strings, pas du HTML) :
 ["keyword1", "keyword2", ...]  (6-8 éléments max, issus du JD)
 
 Structure HTML pour education :
 \`\`\`
 <div class="edu-item">
   <div class="edu-header">
-    <div><span class="edu-title">Diplôme</span> · <span class="edu-org">École</span></div>
-    <span class="edu-year">Années</span>
+    <div><span class="edu-title">Degree</span> · <span class="edu-org">School</span></div>
+    <span class="edu-year">Years</span>
   </div>
-  <div class="edu-desc">Description capstone si pertinente</div>
+  <div class="edu-desc">Capstone description if relevant</div>
 </div>
 \`\`\`
 
 Structure HTML pour certifications :
 \`\`\`
 <div class="cert-item">
-  <span class="cert-title">Nom <span class="cert-org">Organisme</span></span>
-  <span class="cert-year">Année</span>
+  <span class="cert-title">Name <span class="cert-org">Issuer</span></span>
+  <span class="cert-year">Year</span>
 </div>
 \`\`\`
 
 Structure HTML pour skills :
 \`\`\`
 <div class="skills-grid">
-  <span class="skill-item"><span class="skill-category">Catégorie :</span> item1 · item2</span>
+  <span class="skill-item"><span class="skill-category">Category:</span> item1 · item2</span>
 </div>
 \`\`\`
 
@@ -128,7 +154,7 @@ JSON à retourner :
   "company": "...",
   "role": "...",
   "lang": "${lang}",
-  "summary": "texte paragraphe summary adapté",
+  "summary": "summary paragraph adapted to the offer",
   "competencies": ["kw1", "kw2"],
   "experience": "<html>",
   "projects": "<html>",
@@ -137,7 +163,7 @@ JSON à retourner :
   "skills": "<html>"
 }`;
 
-  const userMsg = `Offre d'emploi :\n${offerContent}\n\nKeywords ATS à intégrer : ${(keywords || []).join(', ')}\nMode de travail : ${workMode}\nLieu : ${location}`;
+  const userMsg = `Job offer:\n${offerContent}\n\nATS keywords to integrate: ${(keywords || []).join(', ')}\nWork mode: ${workMode}\nLocation: ${location}\nOutput language: ${lang}`;
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
@@ -162,7 +188,7 @@ async function generateCoverLetter(offerContent, language, company, role, locati
       {
         type: 'text',
         text: `You are writing a cover letter for Baptiste Hoffmann.
-${isEnglish ? 'Write in English.' : 'Écris en français.'}
+${isEnglish ? 'Write in English (US English spelling).' : 'Écris en français.'}
 
 BAPTISTE'S BACKGROUND:
 - Founder & CEO of Kronvex — persistent memory API for B2B AI agents. p50 latency <55ms, 99.9% uptime, GDPR-native. Stack: FastAPI, PostgreSQL, pgvector, Supabase, Stripe, Cloudflare.
