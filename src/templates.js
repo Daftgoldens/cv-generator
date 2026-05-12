@@ -241,6 +241,8 @@ const LOCATION_HINTS = [
 // extractLocation : essaie d'identifier la VRAIE location du poste,
 // pas une mention secondaire. Stratégie : on score chaque match par sa "centralité"
 // dans le texte (proximité de mots-clés type "based in", "location", "office", etc.).
+// Si la meilleure correspondance est un "Remote" sans contexte géographique, on essaie
+// d'inférer le pays depuis la devise utilisée pour le salaire ($, €, £, ¥, etc.).
 function extractLocation(offerText) {
   if (!offerText) return null;
 
@@ -286,7 +288,91 @@ function extractLocation(offerText) {
     }
   }
 
+  // === Currency-based country inference for ambiguous "Remote" ===
+  // If we matched "Remote" but no city, sniff the salary currency to guess the country.
+  // We only do this for the bare "Remote" label, never to override a more specific result.
+  if (best === 'Remote') {
+    const inferred = inferRemoteCountryFromCurrency(offerText);
+    if (inferred) best = inferred;
+  }
+
   return best;
+}
+
+// Detect the salary currency in the offer and map it to a Remote (Country) label.
+// Strategy: count currency symbol occurrences, pick the dominant one. Returns null
+// if no clear signal (we'd rather keep "Remote" than guess wrong).
+function inferRemoteCountryFromCurrency(text) {
+  // Each pattern matches the currency in salary contexts (numbers nearby or per-period units)
+  const CURRENCY_RULES = [
+    {
+      label: 'Remote (US)',
+      patterns: [
+        /\$\s?\d{2,}/g,                                  // "$50", "$100k"
+        /\busd\b/gi,                                      // "USD"
+        /\bus\s*dollars?\b/gi,
+      ],
+    },
+    {
+      label: 'Remote (France)',
+      patterns: [
+        /€\s?\d{2,}/g,                                    // "€60"
+        /\d{2,}\s?€/g,                                    // "60€" / "60 €"
+        /\beur\b/gi,                                      // "EUR"
+        /\beuros?\b/gi,
+      ],
+    },
+    {
+      label: 'Remote (UK)',
+      patterns: [
+        /£\s?\d{2,}/g,                                    // "£50"
+        /\bgbp\b/gi,
+      ],
+    },
+    {
+      label: 'Remote (Canada)',
+      patterns: [
+        /\bcad\b/gi,
+        /\bcanadian\s+dollars?\b/gi,
+        /\bc\$\s?\d{2,}/gi,
+      ],
+    },
+    {
+      label: 'Remote (Japan)',
+      patterns: [
+        /¥\s?\d{2,}/g,
+        /\d{2,}\s?¥/g,
+        /\bjpy\b/gi,
+        /\d{2,}\s?yen\b/gi,
+        /\d{1,2}[\s,.]?\d{3}[\s,.]?\d{3}\s?(yen|jpy)/gi,
+      ],
+    },
+    {
+      label: 'Remote (Singapore)',
+      patterns: [
+        /\bsgd\b/gi,
+        /\bsg\$\s?\d{2,}/gi,
+      ],
+    },
+  ];
+
+  let bestLabel = null;
+  let bestCount = 0;
+
+  for (const rule of CURRENCY_RULES) {
+    let count = 0;
+    for (const re of rule.patterns) {
+      const matches = text.match(re);
+      if (matches) count += matches.length;
+    }
+    if (count > bestCount) {
+      bestCount = count;
+      bestLabel = rule.label;
+    }
+  }
+
+  // Require at least 1 strong match — we don't want to over-infer
+  return bestCount > 0 ? bestLabel : null;
 }
 
 function detectRegion(location) {
