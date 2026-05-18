@@ -88,13 +88,7 @@ Le CV DOIT tenir en une page. Budget optimal :
 - **Expériences** : 4 bullets pour Kronvex, 4-5 bullets pour Thales, 3 bullets pour Safran
 - **Projets** : retourne "" — section masquée automatiquement
 - **Formation** : 1 diplôme + 2 bullets de description
-- **Certifications** : inclure EN PREMIER une ligne de langues puis les certifications :
-  ```
-  <div class="skill-item"><span class="skill-category">Langues :</span> Français (natif) · Anglais bilingue (TOEIC 920/990, ETS mai 2024) · Espagnol (professionnel limité) · Japonais/Chinois (notions)</div>
-  <div class="cert-item"><span class="cert-title">TOEIC 920/990 <span class="cert-org">ETS</span></span><span class="cert-year">2024</span></div>
-  <div class="cert-item"><span class="cert-title">What is Data Science? <span class="cert-org">IBM / Coursera</span></span><span class="cert-year">2026</span></div>
-  <div class="cert-item"><span class="cert-title">IT Essentials <span class="cert-org">Cisco</span></span><span class="cert-year">—</span></div>
-  ```
+- **Certifications** : commencer par une div skill-item avec la ligne de langues (Français natif, Anglais bilingue TOEIC 920/990, Espagnol limité, Japonais/Chinois notions), puis les 3 cert-item habituels (TOEIC ETS 2024, IBM Coursera 2026, Cisco IT Essentials)
 - **Compétences techniques** : 5 catégories, 5-6 items par catégorie
 
 ---
