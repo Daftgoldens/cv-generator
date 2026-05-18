@@ -71,7 +71,9 @@ function buildHtmlFromTemplate(template, profileData, sectionData, lang, region)
     .map(c => `<span class="tag">${c}</span>`)
     .join('\n      ');
 
-  return template
+  const projects = sectionData.projects || '';
+
+  let html = template
     .replace(/\{\{LANG\}\}/g, lang)
     .replace(/\{\{PAGE_WIDTH\}\}/g, pageWidth)
     .replace(/\{\{NAME\}\}/g, profileData.name)
@@ -89,13 +91,22 @@ function buildHtmlFromTemplate(template, profileData, sectionData, lang, region)
     .replace(/\{\{SECTION_EXPERIENCE\}\}/g, labels.experience)
     .replace(/\{\{EXPERIENCE\}\}/g, sectionData.experience || '')
     .replace(/\{\{SECTION_PROJECTS\}\}/g, labels.projects)
-    .replace(/\{\{PROJECTS\}\}/g, sectionData.projects || '')
+    .replace(/\{\{PROJECTS\}\}/g, projects)
     .replace(/\{\{SECTION_EDUCATION\}\}/g, labels.education)
     .replace(/\{\{EDUCATION\}\}/g, sectionData.education || '')
     .replace(/\{\{SECTION_CERTIFICATIONS\}\}/g, labels.certifications)
     .replace(/\{\{CERTIFICATIONS\}\}/g, sectionData.certifications || '')
     .replace(/\{\{SECTION_SKILLS\}\}/g, labels.skills)
     .replace(/\{\{SKILLS\}\}/g, sectionData.skills || '');
+
+  // Strip {{#if PROJECTS}}...{{/if PROJECTS}} blocks: keep inner content if non-empty, remove entirely if empty
+  if (projects.trim()) {
+    html = html.replace(/\{\{#if PROJECTS\}\}/g, '').replace(/\{\{\/if PROJECTS\}\}/g, '');
+  } else {
+    html = html.replace(/\{\{#if PROJECTS\}\}[\s\S]*?\{\{\/if PROJECTS\}\}/g, '');
+  }
+
+  return html;
 }
 
 async function renderPdf(html, format) {
