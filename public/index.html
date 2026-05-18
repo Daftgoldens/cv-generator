@@ -339,6 +339,11 @@
       </select>
     </div>
 
+    <div class="toggle-row" id="row-photo" style="display:none">
+      <label class="toggle"><input type="checkbox" id="gen-photo"><span class="toggle-slider"></span></label>
+      <span class="label" style="margin-bottom:0">Photo (CV France)</span>
+    </div>
+
     <div class="toggle-row">
       <label class="toggle"><input type="checkbox" id="gen-coverletter" onchange="toggleCoverLetter()"><span class="toggle-slider"></span></label>
       <span class="label" style="margin-bottom:0">Lettre de motivation</span>
@@ -562,6 +567,12 @@
       const el = document.getElementById('gen-lang-'+l);
       if (el) el.classList.toggle('active', l === lang);
     });
+    updatePhotoToggleVisibility();
+  }
+
+  function updatePhotoToggleVisibility() {
+    const isFr = selectedGenLang === 'fr' || (selectedGenLang === 'auto' && document.getElementById('gen-lang-badge') && document.getElementById('gen-lang-badge').textContent === 'FR');
+    document.getElementById('row-photo').style.display = isFr ? '' : 'none';
   }
 
   function setWork(work) {
@@ -995,6 +1006,7 @@
           locationOverride: document.getElementById('gen-location').value,
           workMode: selectedWork,
           withCoverLetter: document.getElementById('gen-coverletter').checked,
+          withPhoto: document.getElementById('gen-photo').checked,
           templateOverride: templateOverride || undefined,
           languageOverride: selectedGenLang === 'auto' ? undefined : selectedGenLang,
           regionOverride: getRegionFromTemplate(templateOverride),

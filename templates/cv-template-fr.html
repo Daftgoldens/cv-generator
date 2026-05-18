@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>{{NAME}} — CV</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9.5pt;
+    color: #1a1a1a;
+    background: #fff;
+    line-height: 1.35;
+  }
+
+  .page {
+    max-width: {{PAGE_WIDTH}};
+    margin: 0 auto;
+    padding: 11mm 16mm 10mm 16mm;
+  }
+
+  /* === HEADER === */
+  .header { display:flex; align-items:center; gap:16px; margin-bottom:0; }
+
+  .photo-slot {
+    flex-shrink:0; width:100px; height:122px;
+    border:2px solid #1a3a6b; border-radius:3px; overflow:hidden;
+    background:#f0f4f9; display:flex; align-items:center; justify-content:center;
+    color:#888; font-size:7.5pt; text-align:center; line-height:1.3;
+  }
+  .photo-slot img { width:100%; height:100%; object-fit:cover; object-position:center top; }
+
+  .header-text { flex:1; }
+
+  .header h1 {
+    font-size:18pt; font-weight:700; color:#1a3a6b;
+    letter-spacing:0.5px; margin-bottom:3px;
+  }
+
+  .contact-row { font-size:8.5pt; color:#333; line-height:1.6; }
+  .contact-row a { color:#1a3a6b; text-decoration:none; }
+
+  /* === DIVIDERS === */
+  .divider { border:none; border-top:1.5px solid #1a3a6b; margin:6px 0 4px 0; }
+  .divider-light { border:none; border-top:1px solid #dde4f0; margin:3px 0; }
+
+  /* === SECTION TITLE === */
+  .section-title {
+    font-size:9.5pt; font-weight:700; color:#1a3a6b;
+    text-transform:uppercase; letter-spacing:0.4px;
+    margin-bottom:4px; margin-top:5px;
+  }
+
+  /* === SUMMARY === */
+  .summary-text { font-size:9pt; line-height:1.5; }
+
+  /* === EXPERIENCE === */
+  .job { margin-bottom:6px; }
+  .job-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1px; }
+  .job-title-company { flex:1; }
+  .job-title { font-weight:700; font-size:9.5pt; color:#1a1a1a; }
+  .company { font-weight:700; font-size:9.5pt; color:#1a3a6b; }
+  .separator { color:#888; margin:0 2px; }
+  .location { font-size:8.5pt; color:#666; }
+  .date { font-size:8.5pt; color:#555; white-space:nowrap; margin-left:10px; }
+  .job-role { font-size:8.5pt; color:#555; margin-bottom:2px; font-style:italic; }
+  .job ul { padding-left:13px; margin-top:2px; margin-bottom:2px; }
+  .job li { margin-bottom:1px; font-size:9pt; line-height:1.45; }
+  .job li strong { font-weight:700; }
+
+  /* === COMPETENCIES — hidden in French layout === */
+  .section.competencies-section { display:none; }
+
+  /* === EDUCATION === */
+  .edu-item { margin-bottom:4px; }
+  .edu-header { display:flex; justify-content:space-between; align-items:baseline; }
+  .edu-title { font-weight:700; font-size:9.5pt; color:#1a1a1a; }
+  .edu-org { color:#1a3a6b; font-size:8.5pt; }
+  .edu-year { font-size:8.5pt; color:#555; white-space:nowrap; }
+  .edu-desc { font-size:9pt; color:#444; margin-top:2px; line-height:1.4; }
+
+  /* === SKILLS === */
+  .skill-item { display:block; font-size:9pt; margin-bottom:2px; line-height:1.4; }
+  .skill-category { font-weight:700; color:#1a3a6b; }
+
+  /* === CERTIFICATIONS === */
+  .cert-item { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px; }
+  .cert-title { font-size:9pt; }
+  .cert-org { color:#1a3a6b; }
+  .cert-year { font-size:8.5pt; color:#555; white-space:nowrap; margin-left:8px; }
+
+  /* === PRINT === */
+  @media print {
+    .page { padding:10mm 15mm 9mm 15mm; }
+    @page { size:A4; margin:0; }
+  }
+
+  .avoid-break { break-inside:avoid; page-break-inside:avoid; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    {{PHOTO_SLOT}}
+    <div class="header-text">
+      <h1>{{NAME}}</h1>
+      <div class="contact-row">
+        Paris, France &nbsp;·&nbsp; {{AGE}} ans &nbsp;·&nbsp; Permis B<br>
+        {{PHONE}} &nbsp;·&nbsp; <a href="mailto:{{EMAIL}}">{{EMAIL}}</a><br>
+        <a href="{{LINKEDIN_URL}}">{{LINKEDIN_DISPLAY}}</a>
+        &nbsp;·&nbsp; <a href="{{PORTFOLIO_URL}}">{{PORTFOLIO_DISPLAY}}</a>
+        &nbsp;·&nbsp; <a href="https://github.com/Daftgoldens/Kronvex">github.com/Daftgoldens/Kronvex</a>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- PROFIL -->
+  <div class="section avoid-break">
+    <div class="section-title">{{SECTION_SUMMARY}}</div>
+    <div class="summary-text">{{SUMMARY_TEXT}}</div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- EXPÉRIENCES -->
+  <div class="section">
+    <div class="section-title">{{SECTION_EXPERIENCE}}</div>
+    {{EXPERIENCE}}
+  </div>
+
+  <hr class="divider">
+
+  <!-- FORMATION -->
+  <div class="section avoid-break">
+    <div class="section-title">{{SECTION_EDUCATION}}</div>
+    {{EDUCATION}}
+  </div>
+
+  <hr class="divider">
+
+  <!-- COMPÉTENCES TECHNIQUES -->
+  <div class="section avoid-break">
+    <div class="section-title">{{SECTION_SKILLS}}</div>
+    {{SKILLS}}
+  </div>
+
+  <hr class="divider">
+
+  <!-- LANGUES & CERTIFICATIONS -->
+  <div class="section avoid-break">
+    <div class="section-title">{{SECTION_CERTIFICATIONS}}</div>
+    {{CERTIFICATIONS}}
+  </div>
+
+</div>
+</body>
+</html>

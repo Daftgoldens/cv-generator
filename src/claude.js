@@ -80,20 +80,22 @@ The candidate (Baptiste) is bilingual. Even though the candidate CV source conta
 
 **Toute la sortie doit être en français.** Cela inclut les bullets, descriptions, titres de rôles, catégories de skills, summary, et compétences.
 
-## CONTRAINTE ABSOLUE : 1 PAGE A4 (marges 0.5in)
+## CONTRAINTE : 1 PAGE A4
 
-Le CV DOIT tenir en UNE seule page A4. L'objectif est de **remplir la page** sans déborder.
-
-Budget de contenu pour tenir sur 1 page :
-- **Profil** : 3-4 lignes, 70 mots max
-- **Compétences clés** : 6-8 éléments
-- **Expériences** : 4 bullets pour Kronvex et Thales, 3 bullets pour Safran — bullets de 10-18 mots
-- **Projets** : retourne "" (vide) — la section sera masquée automatiquement
-- **Formation** : 1 diplôme + 1 ligne de description
-- **Certifications** : 3 lignes
-- **Compétences techniques** : 5 catégories, 4-5 items chacune
-
-Ce budget est calibré pour remplir une page A4 proprement. Ne réduis pas davantage.
+Le CV DOIT tenir en une page. Budget optimal :
+- **Profil** : 3-4 lignes, ~70 mots
+- **Compétences clés** : ignorées (section masquée dans ce template)
+- **Expériences** : 4 bullets pour Kronvex, 4-5 bullets pour Thales, 3 bullets pour Safran
+- **Projets** : retourne "" — section masquée automatiquement
+- **Formation** : 1 diplôme + 2 bullets de description
+- **Certifications** : inclure EN PREMIER une ligne de langues puis les certifications :
+  ```
+  <div class="skill-item"><span class="skill-category">Langues :</span> Français (natif) · Anglais bilingue (TOEIC 920/990, ETS mai 2024) · Espagnol (professionnel limité) · Japonais/Chinois (notions)</div>
+  <div class="cert-item"><span class="cert-title">TOEIC 920/990 <span class="cert-org">ETS</span></span><span class="cert-year">2024</span></div>
+  <div class="cert-item"><span class="cert-title">What is Data Science? <span class="cert-org">IBM / Coursera</span></span><span class="cert-year">2026</span></div>
+  <div class="cert-item"><span class="cert-title">IT Essentials <span class="cert-org">Cisco</span></span><span class="cert-year">—</span></div>
+  ```
+- **Compétences techniques** : 5 catégories, 5-6 items par catégorie
 
 ---
 

@@ -9,6 +9,7 @@ async function generate({
   location,
   workMode,
   withCoverLetter,
+  withPhoto,
   templateOverride,
   languageOverride,   // 'fr' | 'en' | undefined
   regionOverride,     // 'france' | 'usa-canada' | 'asia' | 'japan' | 'other' | undefined
@@ -37,7 +38,7 @@ async function generate({
   const { company, role } = sections;
 
   // Generate CV PDF
-  const cvBuffer = await generateCvPdf(sections, language, region, effectiveLocation);
+  const cvBuffer = await generateCvPdf(sections, language, region, effectiveLocation, { withPhoto: !!withPhoto });
 
   const safeCompany = (company || 'Company').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
   const cvFilename = language === 'fr'

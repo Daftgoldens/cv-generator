@@ -5,6 +5,8 @@ const path = require('path');
 const TEMPLATES_DIR = path.join(__dirname, '..', 'templates');
 const FONTS_DIR = path.join(__dirname, '..', 'fonts');
 
+const ASSETS_DIR = path.join(__dirname, '..', 'assets');
+
 const PROFILE = {
   name: 'Baptiste Hoffmann',
   phone: '+33 7 82 98 80 75',
@@ -13,6 +15,7 @@ const PROFILE = {
   linkedinDisplay: 'linkedin.com/in/baptistehoffmann',
   portfolioUrl: 'https://kronvex.io',
   portfolioDisplay: 'kronvex.io',
+  birthYear: 2002,
 };
 
 const SECTION_LABELS = {
@@ -28,11 +31,11 @@ const SECTION_LABELS = {
   fr: {
     summary: 'Profil',
     competencies: 'Compétences clés',
-    experience: 'Expériences',
+    experience: 'Expériences Professionnelles',
     projects: 'Projets',
     education: 'Formation',
-    certifications: 'Certifications',
-    skills: 'Compétences techniques',
+    certifications: 'Langues & Certifications',
+    skills: 'Compétences Techniques',
   },
 };
 
@@ -63,7 +66,7 @@ function resolveFontPaths(html, baseDir) {
   return html.replace(/url\(['"]?\.\/fonts\//g, `url('file:///${normalized}/fonts/`);
 }
 
-function buildHtmlFromTemplate(template, profileData, sectionData, lang, region) {
+function buildHtmlFromTemplate(template, profileData, sectionData, lang, region, options = {}) {
   const labels = getSectionLabels(lang);
   const pageWidth = getPageWidth(region);
 
@@ -72,6 +75,16 @@ function buildHtmlFromTemplate(template, profileData, sectionData, lang, region)
     .join('\n      ');
 
   const projects = sectionData.projects || '';
+
+  // Photo slot for FR template
+  let photoSlot = '';
+  if (options.withPhoto) {
+    const photoPath = path.join(ASSETS_DIR, 'photo_baptiste.jpg').replace(/\\/g, '/');
+    photoSlot = `<div class="photo-slot"><img src="file:///${photoPath}" alt="Baptiste Hoffmann" onerror="this.parentElement.innerHTML='Photo'"></div>`;
+  }
+
+  // Age
+  const age = new Date().getFullYear() - profileData.birthYear;
 
   let html = template
     .replace(/\{\{LANG\}\}/g, lang)
@@ -84,6 +97,8 @@ function buildHtmlFromTemplate(template, profileData, sectionData, lang, region)
     .replace(/\{\{PORTFOLIO_URL\}\}/g, profileData.portfolioUrl)
     .replace(/\{\{PORTFOLIO_DISPLAY\}\}/g, profileData.portfolioDisplay)
     .replace(/\{\{LOCATION\}\}/g, profileData.location || 'Paris, France')
+    .replace(/\{\{PHOTO_SLOT\}\}/g, photoSlot)
+    .replace(/\{\{AGE\}\}/g, String(age))
     .replace(/\{\{SECTION_SUMMARY\}\}/g, labels.summary)
     .replace(/\{\{SUMMARY_TEXT\}\}/g, sectionData.summary || '')
     .replace(/\{\{SECTION_COMPETENCIES\}\}/g, labels.competencies)
@@ -99,7 +114,7 @@ function buildHtmlFromTemplate(template, profileData, sectionData, lang, region)
     .replace(/\{\{SECTION_SKILLS\}\}/g, labels.skills)
     .replace(/\{\{SKILLS\}\}/g, sectionData.skills || '');
 
-  // Strip {{#if PROJECTS}}...{{/if PROJECTS}} blocks: keep inner content if non-empty, remove entirely if empty
+  // Strip {{#if PROJECTS}}...{{/if PROJECTS}} blocks
   if (projects.trim()) {
     html = html.replace(/\{\{#if PROJECTS\}\}/g, '').replace(/\{\{\/if PROJECTS\}\}/g, '');
   } else {
@@ -126,10 +141,11 @@ async function renderPdf(html, format) {
   return buffer;
 }
 
-async function generateCvPdf(sectionData, lang, region, location) {
-  const templateHtml = fs.readFileSync(path.join(TEMPLATES_DIR, 'cv-template.html'), 'utf8');
+async function generateCvPdf(sectionData, lang, region, location, options = {}) {
+  const templateFile = lang === 'fr' ? 'cv-template-fr.html' : 'cv-template.html';
+  const templateHtml = fs.readFileSync(path.join(TEMPLATES_DIR, templateFile), 'utf8');
   const profileData = { ...PROFILE, location };
-  let html = buildHtmlFromTemplate(templateHtml, profileData, sectionData, lang, region);
+  let html = buildHtmlFromTemplate(templateHtml, profileData, sectionData, lang, region, options);
   html = resolveFontPaths(html, path.dirname(TEMPLATES_DIR));
   html = normalizeUnicode(html);
   const format = region === 'usa-canada' ? 'letter' : 'a4';
