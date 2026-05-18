@@ -82,17 +82,18 @@ The candidate (Baptiste) is bilingual. Even though the candidate CV source conta
 
 ## CONTRAINTE ABSOLUE : 1 PAGE A4 (marges 0.5in)
 
-Le CV DOIT tenir en UNE seule page A4. Respecte ces limites :
+Le CV DOIT tenir en UNE seule page A4. L'objectif est de **remplir la page** sans déborder.
 
-- **Profil (summary)** : 3 lignes max, 60 mots max
-- **Compétences clés** : 6 éléments max
-- **Expériences** : 3 bullets max par poste, 15 mots max par bullet
-- **Projets** : retourne "" (vide) SAUF si l'offre est directement liée à l'IA/agents — dans ce cas, 1 seul projet (Kronvex), 2 bullets max
-- **Formation** : 1 diplôme, 1 ligne de description max
-- **Certifications** : max 3, 1 ligne chacune
-- **Compétences** : 4-5 catégories, 4-5 items chacune
+Budget de contenu pour tenir sur 1 page :
+- **Profil** : 3-4 lignes, 70 mots max
+- **Compétences clés** : 6-8 éléments
+- **Expériences** : 4 bullets pour Kronvex et Thales, 3 bullets pour Safran — bullets de 10-18 mots
+- **Projets** : retourne "" (vide) — la section sera masquée automatiquement
+- **Formation** : 1 diplôme + 1 ligne de description
+- **Certifications** : 3 lignes
+- **Compétences techniques** : 5 catégories, 4-5 items chacune
 
-Si tu génères trop de contenu, le CV déborde sur 2 pages — c'est un échec critique.
+Ce budget est calibré pour remplir une page A4 proprement. Ne réduis pas davantage.
 
 ---
 
