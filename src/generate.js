@@ -15,14 +15,11 @@ async function generate({
   locationOverride,   // si l'user a explicitement choisi un lieu → on l'utilise tel quel
 }) {
   // === LANGUAGE ===
-  // Priorité : override explicite > détection auto
   const language = (languageOverride === 'fr' || languageOverride === 'en')
     ? languageOverride
     : detectLanguage(offerContent);
 
   // === LOCATION ===
-  // Priorité : override explicite (champ user) > détection dans l'offre > location passée > défaut
-  // L'override gagne TOUJOURS — si l'user a tapé un lieu, on le respecte.
   let effectiveLocation;
   if (locationOverride && locationOverride.trim()) {
     effectiveLocation = locationOverride.trim();

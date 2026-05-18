@@ -583,9 +583,16 @@
   }
 
   // ===== FETCH OFFER =====
+  function normalizeUrl(url) {
+    if (!url) return url;
+    if (!/^https?:\/\//i.test(url)) return 'https://' + url;
+    return url;
+  }
+
   async function evalFetchOffer() {
-    const url = document.getElementById('eval-url').value.trim();
+    const url = normalizeUrl(document.getElementById('eval-url').value.trim());
     if (!url) return;
+    document.getElementById('eval-url').value = url;
     setEvalStatus('Chargement...');
     try {
       const r = await fetch('/api/fetch-offer', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ url }) });
@@ -599,8 +606,9 @@
   }
 
   async function genFetchOffer() {
-    const url = document.getElementById('gen-url').value.trim();
+    const url = normalizeUrl(document.getElementById('gen-url').value.trim());
     if (!url) return;
+    document.getElementById('gen-url').value = url;
     setGenStatus('Chargement de l\'offre...');
     try {
       const r = await fetch('/api/fetch-offer', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ url }) });
@@ -608,7 +616,6 @@
       if (d.error) throw new Error(d.error);
       document.getElementById('gen-offer').value = d.content;
       setGenStatus('');
-      // Trigger auto-detection of language/region/template
       detectGenTemplate();
     } catch (e) {
       setGenStatus(e.message, true);
