@@ -76,9 +76,23 @@ The candidate (Baptiste) is bilingual. Even though the candidate CV source conta
 ---
 
 `
-    : `# LANGUE DE SORTIE : FRANÇAIS
+    : `# LANGUE DE SORTIE : FRANÇAIS — FORMAT 1 PAGE STRICTEMENT
 
 **Toute la sortie doit être en français.** Cela inclut les bullets, descriptions, titres de rôles, catégories de skills, summary, et compétences.
+
+## CONTRAINTE ABSOLUE : 1 PAGE A4 (marges 0.5in)
+
+Le CV DOIT tenir en UNE seule page A4. Respecte ces limites strictes :
+
+- **Profil (summary)** : 2-3 lignes max, 50 mots max
+- **Expériences** : 3 bullets max par poste, 12 mots max par bullet
+- **Projets** : retourne une chaîne HTML vide `""` — ne génère PAS de section projets
+- **Formation** : 1 ligne par diplôme + 1 ligne de description max
+- **Certifications** : max 3 certifications, 1 ligne chacune
+- **Compétences** : max 5 catégories, 4-5 items par catégorie
+- **Compétences clés** : 6 éléments max
+
+Si tu génères trop de contenu, le CV déborde sur 2 pages — c'est un échec critique.
 
 ---
 

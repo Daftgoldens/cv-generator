@@ -103,9 +103,12 @@ async function renderPdf(html, format) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'networkidle' });
+  const margins = format === 'letter'
+    ? { top: '0.6in', bottom: '0.6in', left: '0.6in', right: '0.6in' }
+    : { top: '0.5in', bottom: '0.5in', left: '0.5in', right: '0.5in' };
   const buffer = await page.pdf({
     format: format === 'letter' ? 'Letter' : 'A4',
-    margin: { top: '0.6in', bottom: '0.6in', left: '0.6in', right: '0.6in' },
+    margin: margins,
     printBackground: true,
   });
   await browser.close();
